@@ -17,6 +17,9 @@ export async function GET(
         productImagePath: true,
         resultImagePath: true,
         generatedPrompt: true,
+        layoutAnalysis: true,
+        styleAnalysis: true,
+        contentAnalysis: true,
         errorMessage: true,
       },
     });
@@ -28,25 +31,32 @@ export async function GET(
       );
     }
 
-    if (task.status !== 'completed') {
+    // 允许 completed 和 failed 状态都返回数据（失败任务也需要展示已完成的分析步骤）
+    if (task.status !== 'completed' && task.status !== 'failed') {
       return NextResponse.json(
         { error: '任务尚未完成' },
         { status: 400 }
       );
     }
 
-    if (!task.resultImagePath) {
-      return NextResponse.json(
-        { error: '结果图片不存在' },
-        { status: 404 }
-      );
-    }
+    // 解析 JSON 字符串为对象
+    const parseJson = (str: string | null) => {
+      if (!str) return null;
+      try {
+        return JSON.parse(str);
+      } catch {
+        return null;
+      }
+    };
 
     const response: TaskResultResponse = {
-      competitorImagePath: task.competitorImagePath!,
-      productImagePath: task.productImagePath!,
-      resultImagePath: task.resultImagePath,
+      competitorImagePath: task.competitorImagePath || '',
+      productImagePath: task.productImagePath || '',
+      resultImagePath: task.resultImagePath || '',
       generatedPrompt: task.generatedPrompt || '',
+      layoutAnalysis: parseJson(task.layoutAnalysis),
+      styleAnalysis: parseJson(task.styleAnalysis),
+      contentAnalysis: parseJson(task.contentAnalysis),
     };
 
     return NextResponse.json(response);

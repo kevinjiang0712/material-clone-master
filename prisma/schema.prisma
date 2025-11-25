@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -15,6 +12,7 @@ model Task {
   status              String   @default("pending")
   currentStep         Int      @default(0)
   totalSteps          Int      @default(5)
+  failedStep          Int?     // 失败时的步骤号，用于断点重试
   competitorImagePath String?
   productImagePath    String?
   resultImagePath     String?

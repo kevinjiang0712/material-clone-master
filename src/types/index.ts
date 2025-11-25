@@ -120,6 +120,7 @@ export interface TaskStatusResponse {
   totalSteps: number;
   stepDescription: string;
   progress: number;
+  failedStep?: number;
   errorMessage?: string;
 }
 
@@ -128,6 +129,9 @@ export interface TaskResultResponse {
   productImagePath: string;
   resultImagePath: string;
   generatedPrompt: string;
+  layoutAnalysis: LayoutAnalysis | null;
+  styleAnalysis: StyleAnalysis | null;
+  contentAnalysis: ContentAnalysis | null;
 }
 
 export interface UploadResponse {

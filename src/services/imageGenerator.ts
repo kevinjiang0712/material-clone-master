@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import { sleep } from '@/lib/utils';
 
 /**
@@ -7,18 +6,8 @@ import { sleep } from '@/lib/utils';
  * 使用 OpenRouter API 进行图像生成
  */
 
-// 创建 OpenRouter 客户端
-const openrouter = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    'HTTP-Referer': process.env.OPENROUTER_SITE_URL,
-    'X-Title': process.env.OPENROUTER_SITE_NAME,
-  },
-});
-
 // 获取配置的图像生成模型
-const IMAGE_MODEL = process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-3-pro-image-preview';
+const IMAGE_MODEL = process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image';
 
 interface ImageGenerateOptions {
   sourceImageBase64: string;

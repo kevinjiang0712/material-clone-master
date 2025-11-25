@@ -16,6 +16,7 @@ export async function GET(
         status: true,
         currentStep: true,
         totalSteps: true,
+        failedStep: true,
         errorMessage: true,
       },
     });
@@ -36,6 +37,7 @@ export async function GET(
       totalSteps: task.totalSteps,
       stepDescription: STEP_DESCRIPTIONS[status] || '处理中...',
       progress,
+      failedStep: task.failedStep || undefined,
       errorMessage: task.errorMessage || undefined,
     };
 
