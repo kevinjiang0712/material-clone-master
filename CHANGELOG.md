@@ -1,14 +1,26 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.0] - 2024-11-27
 
-### TODO - 待办事项
+### Added
 
-- [ ] **图像生成 API 调试**: 需要验证 `google/gemini-2.5-flash-image` 模型的正确调用方式
-  - 当前使用 `modalities: ["text", "image"]` 参数，但官方文档示例未包含此参数
-  - 需要测试移除 `modalities` 参数后的效果
-  - 可能需要改用 `@openrouter/sdk` 官方 SDK
-- [ ] **响应格式适配**: 确认图像生成模型的实际响应格式，调整解析逻辑
+- **API 调用成本记录功能**:
+  - 新增 `ApiCall` 数据表记录每次大模型调用成本
+  - 通过 OpenRouter `/api/v1/generation` 端点获取精确成本数据
+  - 新增 `costTracker.ts` 服务模块处理成本查询和记录
+  - Task 表新增 `totalCost` 字段汇总任务总成本
+
+- **成本展示 UI**:
+  - 结果页每个步骤显示调用成本（绿色标签 `$0.001234`）
+  - 结果页底部显示总成本汇总卡片
+  - 失败任务也会显示已产生的成本（橙色卡片）
+
+### Changed
+
+- 首页最近生成模块从 3 张卡片改为 6 张卡片（2列×3行布局）
+- `analyzeCompetitor` 和 `analyzeContent` 函数现在返回 `{ data, generationId }`
+- `generateImage` 函数现在返回 `generationId` 字段
+- `/api/task/[taskId]/result` 接口新增 `apiCalls` 和 `totalCost` 字段
 
 ---
 
