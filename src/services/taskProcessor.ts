@@ -1,12 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import * as openrouterService from './openrouter';
 import * as imageGeneratorService from './imageGenerator';
+import { recordApiCost } from './costTracker';
 import {
   getImageBase64,
   saveImageFromUrl,
   saveImageFromBase64,
 } from './imageProcessor';
-import { TaskStatus, LayoutAnalysis, StyleAnalysis, ContentAnalysis } from '@/types';
+import { TaskStatus, CompetitorAnalysis, ContentAnalysis, UsedModels } from '@/types';
 
 /**
  * 更新任务状态
@@ -72,11 +73,10 @@ function parseJson<T>(str: string | null): T | null {
  * 处理任务的主函数
  *
  * 执行步骤：
- * 1. 分析竞品图版式
- * 2. 分析竞品图风格
- * 3. 分析实拍图内容
- * 4. 合成提示词
- * 5. 生成图片
+ * 1. 分析竞品图（版式+风格）
+ * 2. 分析实拍图内容
+ * 3. 合成提示词
+ * 4. 生成图片
  *
  * @param taskId - 任务 ID
  * @param startFromStep - 从第几步开始执行（默认为 1，用于断点重试）
@@ -104,8 +104,7 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
     }
 
     // 用于存储各步骤的结果（可能从数据库加载或新生成）
-    let layoutAnalysis: LayoutAnalysis | null = null;
-    let styleAnalysis: StyleAnalysis | null = null;
+    let competitorAnalysis: CompetitorAnalysis | null = null;
     let contentAnalysis: ContentAnalysis | null = null;
     let generatedPrompt: string | null = null;
     let competitorBase64: string | null = null;
@@ -113,104 +112,90 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
 
     // 如果从步骤 2 及以后开始，需要加载步骤 1 的结果
     if (startFromStep > 1) {
-      layoutAnalysis = parseJson<LayoutAnalysis>(task.layoutAnalysis);
-      if (!layoutAnalysis) {
-        throw new Error('Cannot resume: layoutAnalysis not found');
+      competitorAnalysis = parseJson<CompetitorAnalysis>(task.competitorAnalysis);
+      if (!competitorAnalysis) {
+        throw new Error('Cannot resume: competitorAnalysis not found');
       }
     }
 
     // 如果从步骤 3 及以后开始，需要加载步骤 2 的结果
     if (startFromStep > 2) {
-      styleAnalysis = parseJson<StyleAnalysis>(task.styleAnalysis);
-      if (!styleAnalysis) {
-        throw new Error('Cannot resume: styleAnalysis not found');
-      }
-    }
-
-    // 如果从步骤 4 及以后开始，需要加载步骤 3 的结果
-    if (startFromStep > 3) {
       contentAnalysis = parseJson<ContentAnalysis>(task.contentAnalysis);
       if (!contentAnalysis) {
         throw new Error('Cannot resume: contentAnalysis not found');
       }
     }
 
-    // 如果从步骤 5 开始，需要加载步骤 4 的结果
-    if (startFromStep > 4) {
+    // 如果从步骤 4 开始，需要加载步骤 3 的结果
+    if (startFromStep > 3) {
       generatedPrompt = task.generatedPrompt;
       if (!generatedPrompt) {
         throw new Error('Cannot resume: generatedPrompt not found');
       }
     }
 
-    // 步骤 1: 分析竞品图版式
+    // 步骤 1: 分析竞品图（版式+风格）
     if (startFromStep <= 1) {
       currentExecutingStep = 1;
-      console.log(`[Task ${taskId}] Step 1: Analyzing layout...`);
-      await updateTaskStatus(taskId, 'analyzing_layout', 1);
+      console.log(`[Task ${taskId}] Step 1: Analyzing competitor image (layout + style)...`);
+      await updateTaskStatus(taskId, 'analyzing_competitor', 1);
 
       competitorBase64 = await getImageBase64(task.competitorImagePath);
-      layoutAnalysis = await openrouterService.analyzeLayout(competitorBase64);
+      const competitorResult = await openrouterService.analyzeCompetitor(competitorBase64);
+      competitorAnalysis = competitorResult.data;
 
       await prisma.task.update({
         where: { id: taskId },
-        data: { layoutAnalysis: JSON.stringify(layoutAnalysis) },
+        data: { competitorAnalysis: JSON.stringify(competitorAnalysis) },
       });
-      console.log(`[Task ${taskId}] Layout analysis completed`);
+
+      // 记录成本
+      if (competitorResult.generationId) {
+        await recordApiCost(taskId, 1, competitorResult.generationId);
+      }
+
+      console.log(`[Task ${taskId}] Competitor analysis completed`);
     }
 
-    // 步骤 2: 分析竞品图风格
+    // 步骤 2: 分析实拍图内容
     if (startFromStep <= 2) {
       currentExecutingStep = 2;
-      console.log(`[Task ${taskId}] Step 2: Analyzing style...`);
-      await updateTaskStatus(taskId, 'analyzing_style', 2);
-
-      // 如果还没有加载竞品图，现在加载
-      if (!competitorBase64) {
-        competitorBase64 = await getImageBase64(task.competitorImagePath);
-      }
-      styleAnalysis = await openrouterService.analyzeStyle(competitorBase64);
-
-      await prisma.task.update({
-        where: { id: taskId },
-        data: { styleAnalysis: JSON.stringify(styleAnalysis) },
-      });
-      console.log(`[Task ${taskId}] Style analysis completed`);
-    }
-
-    // 步骤 3: 分析实拍图内容
-    if (startFromStep <= 3) {
-      currentExecutingStep = 3;
-      console.log(`[Task ${taskId}] Step 3: Analyzing content...`);
-      await updateTaskStatus(taskId, 'analyzing_content', 3);
+      console.log(`[Task ${taskId}] Step 2: Analyzing content...`);
+      await updateTaskStatus(taskId, 'analyzing_content', 2);
 
       productBase64 = await getImageBase64(task.productImagePath);
       console.log(`[Task ${taskId}] Product image loaded, base64 length:`, productBase64.length);
 
-      contentAnalysis = await openrouterService.analyzeContent(productBase64);
+      const contentResult = await openrouterService.analyzeContent(productBase64);
+      contentAnalysis = contentResult.data;
       console.log(`[Task ${taskId}] Content analysis result:`, JSON.stringify(contentAnalysis, null, 2));
 
       await prisma.task.update({
         where: { id: taskId },
         data: { contentAnalysis: JSON.stringify(contentAnalysis) },
       });
+
+      // 记录成本
+      if (contentResult.generationId) {
+        await recordApiCost(taskId, 2, contentResult.generationId);
+      }
+
       console.log(`[Task ${taskId}] Content analysis completed and saved`);
     }
 
-    // 步骤 4: 合成提示词
-    if (startFromStep <= 4) {
-      currentExecutingStep = 4;
-      console.log(`[Task ${taskId}] Step 4: Generating prompt...`);
-      await updateTaskStatus(taskId, 'generating_prompt', 4);
+    // 步骤 3: 合成提示词
+    if (startFromStep <= 3) {
+      currentExecutingStep = 3;
+      console.log(`[Task ${taskId}] Step 3: Generating prompt...`);
+      await updateTaskStatus(taskId, 'generating_prompt', 3);
 
       console.log(`[Task ${taskId}] Synthesizing prompt with:`);
-      console.log(`[Task ${taskId}] - layoutAnalysis:`, JSON.stringify(layoutAnalysis, null, 2));
-      console.log(`[Task ${taskId}] - styleAnalysis:`, JSON.stringify(styleAnalysis, null, 2));
+      console.log(`[Task ${taskId}] - competitorAnalysis:`, JSON.stringify(competitorAnalysis, null, 2));
       console.log(`[Task ${taskId}] - contentAnalysis:`, JSON.stringify(contentAnalysis, null, 2));
 
       generatedPrompt = openrouterService.synthesizePrompt(
-        layoutAnalysis!,
-        styleAnalysis!,
+        competitorAnalysis!.layout,
+        competitorAnalysis!.style,
         contentAnalysis!
       );
 
@@ -223,11 +208,11 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       console.log(`[Task ${taskId}] Prompt generated and saved`);
     }
 
-    // 步骤 5: 生成图片
-    if (startFromStep <= 5) {
-      currentExecutingStep = 5;
-      console.log(`[Task ${taskId}] Step 5: Generating image...`);
-      await updateTaskStatus(taskId, 'generating_image', 5);
+    // 步骤 4: 生成图片
+    if (startFromStep <= 4) {
+      currentExecutingStep = 4;
+      console.log(`[Task ${taskId}] Step 4: Generating image...`);
+      await updateTaskStatus(taskId, 'generating_image', 4);
 
       // 如果还没有加载产品图，现在加载
       if (!productBase64) {
@@ -257,19 +242,34 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
         console.log(`[Task ${taskId}] Image saved to:`, resultPath);
       }
 
+      // 记录成本
+      if (generationResult.generationId) {
+        await recordApiCost(taskId, 4, generationResult.generationId);
+      }
+
+      // 记录使用的模型
+      const usedModels: UsedModels = {
+        step1_competitor: openrouterService.getVisionModel(),
+        step2_content: openrouterService.getVisionModel(),
+        step3_prompt: '本地处理',
+        step4_image: imageGeneratorService.getImageModel(),
+      };
+
       // 完成
       await prisma.task.update({
         where: { id: taskId },
         data: {
           status: 'completed',
           resultImagePath: resultPath,
-          currentStep: 5,
+          currentStep: 4,
           failedStep: null,
           errorMessage: null,
+          usedModels: JSON.stringify(usedModels),
         },
       });
 
       console.log(`[Task ${taskId}] Processing completed successfully`);
+      console.log(`[Task ${taskId}] Used models:`, usedModels);
     }
   } catch (error) {
     await setTaskFailed(

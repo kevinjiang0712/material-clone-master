@@ -1,5 +1,11 @@
 import OpenAI from 'openai';
-import { LayoutAnalysis, StyleAnalysis, ContentAnalysis } from '@/types';
+import { LayoutAnalysis, StyleAnalysis, ContentAnalysis, CompetitorAnalysis } from '@/types';
+
+// 带 generationId 的响应类型
+export interface AnalysisResponse<T> {
+  data: T;
+  generationId: string;
+}
 
 // 创建 OpenRouter 客户端
 const openrouter = new OpenAI({
@@ -13,6 +19,11 @@ const openrouter = new OpenAI({
 
 // 获取配置的视觉模型
 const VISION_MODEL = process.env.OPENROUTER_VISION_MODEL || 'google/gemini-flash-1.5-8b';
+
+// 导出模型名称供外部使用
+export function getVisionModel(): string {
+  return VISION_MODEL;
+}
 
 const LAYOUT_ANALYSIS_PROMPT = `你现在负责分析"竞品商品图"的版式模板（layout_template）。
 
@@ -54,6 +65,89 @@ const LAYOUT_ANALYSIS_PROMPT = `你现在负责分析"竞品商品图"的版式�
   "text_blocks": [...],
   "decors": {...},
   "layer_sequence": [...]
+}`;
+
+// 合并版式+风格分析的 Prompt
+const COMPETITOR_ANALYSIS_PROMPT = `你现在负责分析"竞品商品图"的版式模板和视觉风格。
+
+请从上传的竞品图中提取以下两部分结构化信息：
+
+## 第一部分：版式模板（layout）
+
+1. main_object（主体构图）
+  - position: 主体位置 (left / center / right)
+  - horizontal_offset: 水平偏移描述
+  - vertical_offset: 垂直偏移描述
+  - size: 主体大小描述（宽度占比、高度占比）
+  - view_angle: 主体视角（俯拍/平拍/仰拍）
+  - rotation: 主体旋转角度描述
+  - edge_crop: 是否裁切边缘 (true/false)
+
+2. background_structure（背景结构）
+  - type: 背景类型（纯色 / 渐变 / 场景虚化 / 几何背景）
+  - layers: 图层描述数组
+  - decorations: 装饰元素描述数组
+
+3. text_blocks（所有文字的布局）
+对每一段文案提取：
+  - type: 类型（标题/副标题/标签/角标/卖点）
+  - position: 文案区域位置描述
+  - alignment: 文案对齐方式
+  - has_mask: 是否使用背景遮罩 (true/false)
+
+4. decors（装饰元素）
+  - light_effects: 光效类型数组
+  - shadows: 阴影类型数组
+  - shapes: 几何图形数组
+
+5. layer_sequence（图层顺序）
+示例：["background", "decors", "product", "text"]
+
+## 第二部分：风格信息（style）
+
+1. color_style
+  - primary_color: 主色调（HEX 或色名）
+  - secondary_colors: 辅色调数组
+  - saturation: 色彩饱和度描述
+  - brightness: 亮度描述
+
+2. lighting
+  - direction: 光源方向
+  - type: 光线类型（柔光/硬光）
+  - shadow_intensity: 阴影强度描述
+  - shadow_blur: 阴影模糊度描述
+
+3. texture
+  - surface: 表面质感（哑光/亮面/奶油风/科技光泽）
+  - grain: 颗粒感描述
+  - reflection: 反光亮度描述
+
+4. background_style
+  - gradient_direction: 渐变方向
+  - blur_level: 模糊程度
+  - floating_effects: 是否有漂浮光效、光斑 (true/false)
+
+5. vibe: 情绪关键词（清新 / 高级 / 科技 / 活力 / 日系 / 韩系 等）
+
+6. style_prompt: 根据以上风格自动生成的描述性 prompt（英文）
+
+请严格按以下 JSON 格式输出，不要添加任何额外说明：
+{
+  "layout": {
+    "main_object": {...},
+    "background_structure": {...},
+    "text_blocks": [...],
+    "decors": {...},
+    "layer_sequence": [...]
+  },
+  "style": {
+    "color_style": {...},
+    "lighting": {...},
+    "texture": {...},
+    "background_style": {...},
+    "vibe": "...",
+    "style_prompt": "..."
+  }
 }`;
 
 const STYLE_ANALYSIS_PROMPT = `你现在负责分析"竞品商品图"的风格信息（style_profile）。
@@ -236,7 +330,7 @@ export async function analyzeStyle(imageBase64: string): Promise<StyleAnalysis> 
   }
 }
 
-export async function analyzeContent(imageBase64: string): Promise<ContentAnalysis> {
+export async function analyzeContent(imageBase64: string): Promise<AnalysisResponse<ContentAnalysis>> {
   console.log('[OpenRouter] Calling analyzeContent with model:', VISION_MODEL);
 
   try {
@@ -262,11 +356,51 @@ export async function analyzeContent(imageBase64: string): Promise<ContentAnalys
     console.log('[OpenRouter] analyzeContent content length:', content.length);
 
     const result = parseJsonResponse(content) as ContentAnalysis;
+    const generationId = response.id || '';
     console.log('[OpenRouter] analyzeContent result keys:', Object.keys(result));
+    console.log('[OpenRouter] analyzeContent generationId:', generationId);
     console.log('[OpenRouter] analyzeContent completed successfully');
-    return result;
+    return { data: result, generationId };
   } catch (error) {
     console.error('[OpenRouter] analyzeContent error:', error);
+    throw error;
+  }
+}
+
+// 合并分析竞品图（版式+风格）
+export async function analyzeCompetitor(imageBase64: string): Promise<AnalysisResponse<CompetitorAnalysis>> {
+  console.log('[OpenRouter] Calling analyzeCompetitor with model:', VISION_MODEL);
+  console.log('[OpenRouter] Image base64 length:', imageBase64.length);
+
+  try {
+    const response = await openrouter.chat.completions.create({
+      model: VISION_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: COMPETITOR_ANALYSIS_PROMPT },
+            {
+              type: 'image_url',
+              image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
+            },
+          ],
+        },
+      ],
+      max_tokens: 4000,
+    });
+
+    console.log('[OpenRouter] analyzeCompetitor response status:', response.choices[0].finish_reason);
+    const content = response.choices[0].message.content || '{}';
+    console.log('[OpenRouter] analyzeCompetitor content length:', content.length);
+
+    const result = parseJsonResponse(content) as CompetitorAnalysis;
+    const generationId = response.id || '';
+    console.log('[OpenRouter] analyzeCompetitor generationId:', generationId);
+    console.log('[OpenRouter] analyzeCompetitor completed successfully');
+    return { data: result, generationId };
+  } catch (error) {
+    console.error('[OpenRouter] analyzeCompetitor error:', error);
     throw error;
   }
 }

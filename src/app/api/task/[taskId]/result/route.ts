@@ -17,10 +17,22 @@ export async function GET(
         productImagePath: true,
         resultImagePath: true,
         generatedPrompt: true,
-        layoutAnalysis: true,
-        styleAnalysis: true,
+        competitorAnalysis: true,
         contentAnalysis: true,
+        usedModels: true,
         errorMessage: true,
+        totalCost: true,
+        apiCalls: {
+          select: {
+            step: true,
+            model: true,
+            totalCost: true,
+            tokensPrompt: true,
+            tokensCompletion: true,
+            latency: true,
+          },
+          orderBy: { step: 'asc' },
+        },
       },
     });
 
@@ -54,9 +66,11 @@ export async function GET(
       productImagePath: task.productImagePath || '',
       resultImagePath: task.resultImagePath || '',
       generatedPrompt: task.generatedPrompt || '',
-      layoutAnalysis: parseJson(task.layoutAnalysis),
-      styleAnalysis: parseJson(task.styleAnalysis),
+      competitorAnalysis: parseJson(task.competitorAnalysis),
       contentAnalysis: parseJson(task.contentAnalysis),
+      usedModels: parseJson(task.usedModels),
+      apiCalls: task.apiCalls,
+      totalCost: task.totalCost,
     };
 
     return NextResponse.json(response);

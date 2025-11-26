@@ -8,19 +8,37 @@ datasource db {
 }
 
 model Task {
-  id                  String   @id @default(uuid())
-  status              String   @default("pending")
-  currentStep         Int      @default(0)
-  totalSteps          Int      @default(5)
-  failedStep          Int?     // 失败时的步骤号，用于断点重试
+  id                  String    @id @default(uuid())
+  status              String    @default("pending")
+  currentStep         Int       @default(0)
+  totalSteps          Int       @default(4)
+  failedStep          Int?      // 失败时的步骤号，用于断点重试
   competitorImagePath String?
   productImagePath    String?
   resultImagePath     String?
-  layoutAnalysis      String?
-  styleAnalysis       String?
+  competitorAnalysis  String?   // 合并版式+风格分析
   contentAnalysis     String?
   generatedPrompt     String?
+  usedModels          String?   // JSON: 每个步骤使用的模型名称
   errorMessage        String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  totalCost           Float?    // 总成本（美元）
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  apiCalls            ApiCall[]
+}
+
+model ApiCall {
+  id               String   @id @default(uuid())
+  taskId           String
+  task             Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  step             Int      // 步骤号 1/2/4
+  generationId     String   // OpenRouter 返回的 gen-xxx
+  model            String   // 使用的模型
+  totalCost        Float    // 成本（美元）
+  tokensPrompt     Int?     // 输入 token
+  tokensCompletion Int?     // 输出 token
+  latency          Int?     // 延迟（毫秒）
+  createdAt        DateTime @default(now())
+
+  @@index([taskId])
 }

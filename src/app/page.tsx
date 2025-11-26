@@ -160,7 +160,7 @@ export default function HomePage() {
 
           {/* 历史记录 */}
           <div className="mt-12">
-            <TaskHistoryList limit={3} showTitle={true} showLoadMore={false} />
+            <TaskHistoryList limit={6} showTitle={true} showLoadMore={false} />
           </div>
         </div>
       </main>

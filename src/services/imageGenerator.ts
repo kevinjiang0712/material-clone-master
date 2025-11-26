@@ -9,6 +9,11 @@ import { sleep } from '@/lib/utils';
 // 获取配置的图像生成模型
 const IMAGE_MODEL = process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image';
 
+// 导出模型名称供外部使用
+export function getImageModel(): string {
+  return IMAGE_MODEL;
+}
+
 interface ImageGenerateOptions {
   sourceImageBase64: string;
   prompt: string;
@@ -19,6 +24,7 @@ interface ImageGenerateOptions {
 interface ImageGenerationResponse {
   imageUrl: string;
   imageBase64?: string;
+  generationId?: string;
 }
 
 /**
@@ -75,12 +81,14 @@ async function realGenerateImage(
       ],
     };
 
+    const firstContent = requestBody.messages[0].content[0];
+    const textPreview = 'text' in firstContent && firstContent.text ? firstContent.text.substring(0, 100) + '...' : '';
     console.log(`[ImageGenerator] Request body (without image):`, JSON.stringify({
       model: requestBody.model,
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: requestBody.messages[0].content[0].text.substring(0, 100) + '...' },
+          { type: 'text', text: textPreview },
           { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,[BASE64_DATA]' } }
         ]
       }]
@@ -123,6 +131,9 @@ async function realGenerateImage(
     console.log(JSON.stringify(data, null, 2));
     console.log(`[ImageGenerator] ========== END PARSED RESPONSE ==========`);
 
+    // 提取 generationId
+    const generationId = data.id || '';
+
     // 提取图像 - 根据实际 API 响应格式
     // 响应结构: choices[0].message.images[0].image_url.url
     const choice = data.choices?.[0];
@@ -134,16 +145,17 @@ async function realGenerateImage(
       const url = img.image_url?.url || img.url;
       if (url) {
         console.log(`[ImageGenerator] Found image in message.images, url starts with:`, url.substring(0, 50));
+        console.log(`[ImageGenerator] generationId:`, generationId);
         if (url.startsWith('data:image')) {
           const base64Match = url.match(/data:image\/[^;]+;base64,(.+)/);
           if (base64Match) {
             console.log(`[ImageGenerator] Successfully extracted base64 image, length:`, base64Match[1].length);
             console.log(`[ImageGenerator] ==================== END ====================\n`);
-            return { imageUrl: '', imageBase64: base64Match[1] };
+            return { imageUrl: '', imageBase64: base64Match[1], generationId };
           }
         }
         console.log(`[ImageGenerator] ==================== END ====================\n`);
-        return { imageUrl: url };
+        return { imageUrl: url, generationId };
       }
     }
 
@@ -155,15 +167,16 @@ async function realGenerateImage(
           const url = item.image_url?.url || item.url || item.image;
           if (url) {
             console.log(`[ImageGenerator] Found image in content array, url starts with:`, url.substring(0, 50));
+            console.log(`[ImageGenerator] generationId:`, generationId);
             if (url.startsWith('data:image')) {
               const base64Match = url.match(/data:image\/[^;]+;base64,(.+)/);
               if (base64Match) {
                 console.log(`[ImageGenerator] ==================== END ====================\n`);
-                return { imageUrl: '', imageBase64: base64Match[1] };
+                return { imageUrl: '', imageBase64: base64Match[1], generationId };
               }
             }
             console.log(`[ImageGenerator] ==================== END ====================\n`);
-            return { imageUrl: url };
+            return { imageUrl: url, generationId };
           }
         }
       }
