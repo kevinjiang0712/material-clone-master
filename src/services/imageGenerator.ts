@@ -40,53 +40,52 @@ async function mockGenerateImage(
 /**
  * 使用 OpenRouter 生成图像
  *
- * 重要: OpenRouter 图像生成需要:
- * 1. 使用支持图像输出的模型 (如 google/gemini-2.5-flash-preview-05-20)
- * 2. 添加 modalities: ["text", "image"] 参数
- * 3. 从响应的 images 字段或 content 中提取图像
+ * 调试版本：打印完整的 API 响应，用于确认正确的响应格式
  */
 async function realGenerateImage(
   options: ImageGenerateOptions
 ): Promise<ImageGenerationResponse> {
   const { sourceImageBase64, prompt } = options;
 
-  console.log(`[ImageGenerator] ========== Starting Image Generation ==========`);
-  console.log(`[ImageGenerator] Using model: ${IMAGE_MODEL}`);
-  console.log(`[ImageGenerator] Source image base64 length: ${sourceImageBase64.length}`);
-  console.log(`[ImageGenerator] Full prompt:\n${prompt}`);
+  console.log(`\n[ImageGenerator] ==================== START ====================`);
+  console.log(`[ImageGenerator] Model: ${IMAGE_MODEL}`);
+  console.log(`[ImageGenerator] Image base64 length: ${sourceImageBase64.length}`);
+  console.log(`[ImageGenerator] Prompt preview: ${prompt.substring(0, 200)}...`);
 
   try {
-    // 构建请求体 - 关键是添加 modalities 参数
+    // 简化的请求体 - 按照官方文档格式
     const requestBody = {
       model: IMAGE_MODEL,
       messages: [
         {
-          role: 'user' as const,
+          role: 'user',
           content: [
             {
-              type: 'text' as const,
-              text: `Based on this reference product image, create a new professional e-commerce product photo. ${prompt}`,
+              type: 'text',
+              text: `Based on this reference product image, generate a new professional e-commerce product photo with similar style. ${prompt}`,
             },
             {
-              type: 'image_url' as const,
-              image_url: { url: `data:image/jpeg;base64,${sourceImageBase64}` },
+              type: 'image_url',
+              image_url: {
+                url: `data:image/jpeg;base64,${sourceImageBase64}`
+              },
             },
           ],
         },
       ],
-      // 关键参数: 启用图像输出模态
-      modalities: ['text', 'image'],
-      max_tokens: 4000,
     };
 
-    console.log(`[ImageGenerator] Request payload (without full image):`, JSON.stringify({
+    console.log(`[ImageGenerator] Request body (without image):`, JSON.stringify({
       model: requestBody.model,
-      messagesCount: requestBody.messages.length,
-      modalities: requestBody.modalities,
-      maxTokens: requestBody.max_tokens
-    }));
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: requestBody.messages[0].content[0].text.substring(0, 100) + '...' },
+          { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,[BASE64_DATA]' } }
+        ]
+      }]
+    }, null, 2));
 
-    // 使用 fetch 直接调用 API，因为 OpenAI SDK 可能不支持 modalities 参数
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -98,122 +97,85 @@ async function realGenerateImage(
       body: JSON.stringify(requestBody),
     });
 
+    console.log(`[ImageGenerator] Response status: ${response.status} ${response.statusText}`);
+    console.log(`[ImageGenerator] Response headers:`, Object.fromEntries(response.headers.entries()));
+
+    const responseText = await response.text();
+    console.log(`[ImageGenerator] Raw response length: ${responseText.length}`);
+    console.log(`[ImageGenerator] ========== FULL RAW RESPONSE ==========`);
+    console.log(responseText);
+    console.log(`[ImageGenerator] ========== END RAW RESPONSE ==========`);
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[ImageGenerator] API error response:', errorText);
-      throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+      throw new Error(`API request failed: ${response.status} ${response.statusText} - ${responseText}`);
     }
 
-    const data = await response.json();
-    console.log(`[ImageGenerator] Response received`);
-    console.log(`[ImageGenerator] Response keys:`, Object.keys(data));
-
-    // 方式1: 检查响应中的 images 字段 (OpenRouter 图像生成的标准格式)
-    if (data.images && Array.isArray(data.images) && data.images.length > 0) {
-      const imageItem = data.images[0];
-      if (imageItem.image_url?.url) {
-        const imageUrl = imageItem.image_url.url;
-        console.log(`[ImageGenerator] Found image in images array`);
-
-        // 检查是否是 base64 data URL
-        if (imageUrl.startsWith('data:image')) {
-          const base64Match = imageUrl.match(/data:image\/[^;]+;base64,(.+)/);
-          if (base64Match) {
-            console.log(`[ImageGenerator] Extracted base64 from images array, length: ${base64Match[1].length}`);
-            return {
-              imageUrl: '',
-              imageBase64: base64Match[1],
-            };
-          }
-        }
-
-        // 否则当作 URL 返回
-        return {
-          imageUrl: imageUrl,
-        };
-      }
+    // 解析 JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error('[ImageGenerator] Failed to parse JSON:', e);
+      throw new Error(`Failed to parse response as JSON: ${responseText.substring(0, 500)}`);
     }
 
-    // 方式2: 检查 choices[0].message.content 中的内容
+    console.log(`[ImageGenerator] ========== PARSED RESPONSE ==========`);
+    console.log(JSON.stringify(data, null, 2));
+    console.log(`[ImageGenerator] ========== END PARSED RESPONSE ==========`);
+
+    // 提取图像 - 根据实际 API 响应格式
+    // 响应结构: choices[0].message.images[0].image_url.url
     const choice = data.choices?.[0];
-    if (!choice) {
-      console.error('[ImageGenerator] No choices in response:', JSON.stringify(data, null, 2));
-      throw new Error('No choices in API response');
+    const message = choice?.message;
+
+    // 检查 message.images 数组（实际的响应格式）
+    if (message?.images && Array.isArray(message.images) && message.images.length > 0) {
+      const img = message.images[0];
+      const url = img.image_url?.url || img.url;
+      if (url) {
+        console.log(`[ImageGenerator] Found image in message.images, url starts with:`, url.substring(0, 50));
+        if (url.startsWith('data:image')) {
+          const base64Match = url.match(/data:image\/[^;]+;base64,(.+)/);
+          if (base64Match) {
+            console.log(`[ImageGenerator] Successfully extracted base64 image, length:`, base64Match[1].length);
+            console.log(`[ImageGenerator] ==================== END ====================\n`);
+            return { imageUrl: '', imageBase64: base64Match[1] };
+          }
+        }
+        console.log(`[ImageGenerator] ==================== END ====================\n`);
+        return { imageUrl: url };
+      }
     }
 
-    console.log(`[ImageGenerator] Finish reason: ${choice.finish_reason}`);
-
-    // 检查 message.content 是否是数组格式 (多模态响应)
-    const messageContent = choice.message?.content;
-
+    // 备用：检查 content 是否是数组（其他可能的格式）
+    const messageContent = message?.content;
     if (Array.isArray(messageContent)) {
-      console.log(`[ImageGenerator] Content is array with ${messageContent.length} items`);
       for (const item of messageContent) {
-        if (item.type === 'image_url' && item.image_url?.url) {
-          const imageUrl = item.image_url.url;
-          if (imageUrl.startsWith('data:image')) {
-            const base64Match = imageUrl.match(/data:image\/[^;]+;base64,(.+)/);
-            if (base64Match) {
-              console.log(`[ImageGenerator] Extracted base64 from content array, length: ${base64Match[1].length}`);
-              return {
-                imageUrl: '',
-                imageBase64: base64Match[1],
-              };
+        if (item.type === 'image_url' || item.type === 'image') {
+          const url = item.image_url?.url || item.url || item.image;
+          if (url) {
+            console.log(`[ImageGenerator] Found image in content array, url starts with:`, url.substring(0, 50));
+            if (url.startsWith('data:image')) {
+              const base64Match = url.match(/data:image\/[^;]+;base64,(.+)/);
+              if (base64Match) {
+                console.log(`[ImageGenerator] ==================== END ====================\n`);
+                return { imageUrl: '', imageBase64: base64Match[1] };
+              }
             }
+            console.log(`[ImageGenerator] ==================== END ====================\n`);
+            return { imageUrl: url };
           }
-          return { imageUrl: imageUrl };
         }
       }
     }
 
-    // 方式3: content 是字符串，尝试从中提取图像
-    const content = typeof messageContent === 'string' ? messageContent : JSON.stringify(messageContent);
-    console.log(`[ImageGenerator] Content type: ${typeof messageContent}`);
-    console.log(`[ImageGenerator] Content length: ${content?.length || 0}`);
-
-    if (!content || content === 'null' || content === '""') {
-      console.error('[ImageGenerator] No content received from model');
-      console.error('[ImageGenerator] Full response:', JSON.stringify(data, null, 2));
-      throw new Error('No content received from image generation model. Please check if the model supports image generation with modalities parameter.');
-    }
-
-    console.log(`[ImageGenerator] Raw content preview: ${content.substring(0, 500)}...`);
-
-    // 检查是否是 base64 格式
-    if (content.includes('data:image')) {
-      console.log('[ImageGenerator] Found data:image in content');
-      const base64Match = content.match(/data:image\/[^;]+;base64,([^\s"']+)/);
-      if (base64Match) {
-        console.log(`[ImageGenerator] Extracted base64 image, length: ${base64Match[1].length}`);
-        return {
-          imageUrl: '',
-          imageBase64: base64Match[1],
-        };
-      }
-    }
-
-    // 检查是否是 URL 格式
-    const urlMatch = content.match(/https?:\/\/[^\s"']+\.(jpg|jpeg|png|webp)/i);
-    if (urlMatch) {
-      console.log(`[ImageGenerator] Found image URL: ${urlMatch[0]}`);
-      return {
-        imageUrl: urlMatch[0],
-      };
-    }
-
-    // 如果都没有匹配到，记录完整响应用于调试
-    console.warn('[ImageGenerator] Could not extract image from response');
-    console.warn('[ImageGenerator] Full response data:', JSON.stringify(data, null, 2));
-    throw new Error('Could not extract image from model response. The model may not support image generation.');
+    console.log(`[ImageGenerator] ==================== END ====================\n`);
+    throw new Error(`Could not extract image from response. Response structure: ${JSON.stringify(Object.keys(data))}`);
 
   } catch (error) {
-    console.error('[ImageGenerator] ========== Image Generation Error ==========');
-    console.error('[ImageGenerator] Error type:', error?.constructor?.name);
-    console.error('[ImageGenerator] Error message:', error instanceof Error ? error.message : 'Unknown error');
-    console.error('[ImageGenerator] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    if (error && typeof error === 'object') {
-      console.error('[ImageGenerator] Error details:', JSON.stringify(error, null, 2));
-    }
+    console.error(`[ImageGenerator] ========== ERROR ==========`);
+    console.error(`[ImageGenerator] Error:`, error);
+    console.error(`[ImageGenerator] ==================== END ====================\n`);
     throw new Error(
       `Image generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
