@@ -1,16 +1,36 @@
 import { sleep } from '@/lib/utils';
+import { fetchWithRetry } from '@/lib/fetchWithTimeout';
+import * as jimenImageGenerator from './jimenImageGenerator';
 
 /**
- * OpenRouter 图像生成服务
+ * 图像生成服务
  *
- * 使用 OpenRouter API 进行图像生成
+ * 支持多种图像生成模型：
+ * - OpenRouter (默认)
+ * - 即梦 (Doubao Seedream)
  */
 
 // 获取配置的图像生成模型
 const IMAGE_MODEL = process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image';
 
+// 图像生成提供商类型
+type ImageProvider = 'openrouter' | 'jimen';
+
+// 获取当前配置的提供商
+function getImageProvider(): ImageProvider {
+  const provider = process.env.IMAGE_PROVIDER?.toLowerCase();
+  if (provider === 'jimen') {
+    return 'jimen';
+  }
+  return 'openrouter';
+}
+
 // 导出模型名称供外部使用
 export function getImageModel(): string {
+  const provider = getImageProvider();
+  if (provider === 'jimen') {
+    return jimenImageGenerator.getJimenModel();
+  }
   return IMAGE_MODEL;
 }
 
@@ -25,6 +45,7 @@ interface ImageGenerationResponse {
   imageUrl: string;
   imageBase64?: string;
   generationId?: string;
+  cost?: number;  // 本次调用成本（元）- 用于固定价格的服务如即梦
 }
 
 /**
@@ -68,7 +89,16 @@ async function realGenerateImage(
           content: [
             {
               type: 'text',
-              text: `Based on this reference product image, generate a new professional e-commerce product photo with similar style. ${prompt}`,
+              text: `TASK: Transform this product into a professional e-commerce photo.
+
+CRITICAL RULES:
+1. The product in output must be IDENTICAL to input - same shape, color, material
+2. Only change: background, lighting, composition, atmosphere
+3. Do NOT redesign or reimagine the product
+
+${prompt}
+
+Output: Professional product photo with the EXACT SAME product, styled professionally.`,
             },
             {
               type: 'image_url',
@@ -94,7 +124,7 @@ async function realGenerateImage(
       }]
     }, null, 2));
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetchWithRetry('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -216,6 +246,17 @@ export async function generateImage(
     return mockGenerateImage(productImagePath);
   }
 
+  // 根据配置选择提供商
+  const provider = getImageProvider();
+
+  if (provider === 'jimen') {
+    console.log('[ImageGenerator] Using 即梦 (Doubao Seedream) API');
+    return jimenImageGenerator.generateImage({
+      sourceImageBase64,
+      prompt,
+    });
+  }
+
   console.log('[ImageGenerator] Using OpenRouter API');
   return realGenerateImage({
     sourceImageBase64,
@@ -227,8 +268,174 @@ export async function generateImage(
  * 检查图像生成 API 是否可用
  */
 export function isImageGeneratorConfigured(): boolean {
+  const provider = getImageProvider();
+
+  if (provider === 'jimen') {
+    return jimenImageGenerator.isJimenConfigured();
+  }
+
   return Boolean(
     process.env.OPENROUTER_API_KEY &&
     process.env.OPENROUTER_API_KEY !== 'your-openrouter-api-key'
   );
+}
+
+/**
+ * 使用指定模型生成图像
+ *
+ * @param modelId - 模型 ID，格式: "provider:model"，如 "jimen:doubao-seedream-4-0-250828"
+ * @param sourceImageBase64 - 实拍图的 base64 编码
+ * @param prompt - 生成提示词
+ * @param productImagePath - 产品图路径（Mock 模式用）
+ * @returns 生成结果
+ */
+export async function generateImageWithModel(
+  modelId: string,
+  sourceImageBase64: string,
+  prompt: string,
+  productImagePath: string
+): Promise<ImageGenerationResponse> {
+  // 检查是否使用 Mock
+  const useMock = process.env.USE_MOCK_GENERATION === 'true';
+  if (useMock) {
+    console.log(`[ImageGenerator] Mock mode for model: ${modelId}`);
+    return mockGenerateImage(productImagePath);
+  }
+
+  // 解析 provider 和 model
+  const [provider, ...modelParts] = modelId.split(':');
+  const model = modelParts.join(':');  // 处理 model 名称中可能包含冒号的情况
+
+  console.log(`[ImageGenerator] Generating with provider=${provider}, model=${model}`);
+
+  if (provider === 'jimen') {
+    return jimenImageGenerator.generateImage({
+      sourceImageBase64,
+      prompt,
+    });
+  }
+
+  // OpenRouter - 使用指定模型
+  return realGenerateImageWithModel(model, {
+    sourceImageBase64,
+    prompt,
+  });
+}
+
+/**
+ * 使用 OpenRouter 指定模型生成图像
+ */
+async function realGenerateImageWithModel(
+  model: string,
+  options: ImageGenerateOptions
+): Promise<ImageGenerationResponse> {
+  const { sourceImageBase64, prompt } = options;
+
+  console.log(`\n[ImageGenerator] ==================== START ====================`);
+  console.log(`[ImageGenerator] Model: ${model}`);
+  console.log(`[ImageGenerator] Image base64 length: ${sourceImageBase64.length}`);
+  console.log(`[ImageGenerator] Prompt preview: ${prompt.substring(0, 200)}...`);
+
+  try {
+    const requestBody = {
+      model: model,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `TASK: Transform this product into a professional e-commerce photo.
+
+CRITICAL RULES:
+1. The product in output must be IDENTICAL to input - same shape, color, material
+2. Only change: background, lighting, composition, atmosphere
+3. Do NOT redesign or reimagine the product
+
+${prompt}
+
+Output: Professional product photo with the EXACT SAME product, styled professionally.`,
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:image/jpeg;base64,${sourceImageBase64}`
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const response = await fetchWithRetry('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': process.env.OPENROUTER_SITE_URL || '',
+        'X-Title': process.env.OPENROUTER_SITE_NAME || '',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    console.log(`[ImageGenerator] Response status: ${response.status} ${response.statusText}`);
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status} ${response.statusText} - ${responseText}`);
+    }
+
+    const data = JSON.parse(responseText);
+    const generationId = data.id || '';
+    const choice = data.choices?.[0];
+    const message = choice?.message;
+
+    // 检查 message.images 数组
+    if (message?.images && Array.isArray(message.images) && message.images.length > 0) {
+      const img = message.images[0];
+      const url = img.image_url?.url || img.url;
+      if (url) {
+        if (url.startsWith('data:image')) {
+          const base64Match = url.match(/data:image\/[^;]+;base64,(.+)/);
+          if (base64Match) {
+            console.log(`[ImageGenerator] ==================== END ====================\n`);
+            return { imageUrl: '', imageBase64: base64Match[1], generationId };
+          }
+        }
+        console.log(`[ImageGenerator] ==================== END ====================\n`);
+        return { imageUrl: url, generationId };
+      }
+    }
+
+    // 备用：检查 content 数组
+    const messageContent = message?.content;
+    if (Array.isArray(messageContent)) {
+      for (const item of messageContent) {
+        if (item.type === 'image_url' || item.type === 'image') {
+          const url = item.image_url?.url || item.url || item.image;
+          if (url) {
+            if (url.startsWith('data:image')) {
+              const base64Match = url.match(/data:image\/[^;]+;base64,(.+)/);
+              if (base64Match) {
+                console.log(`[ImageGenerator] ==================== END ====================\n`);
+                return { imageUrl: '', imageBase64: base64Match[1], generationId };
+              }
+            }
+            console.log(`[ImageGenerator] ==================== END ====================\n`);
+            return { imageUrl: url, generationId };
+          }
+        }
+      }
+    }
+
+    console.log(`[ImageGenerator] ==================== END ====================\n`);
+    throw new Error(`Could not extract image from response`);
+
+  } catch (error) {
+    console.error(`[ImageGenerator] Error with model ${model}:`, error);
+    throw new Error(
+      `Image generation failed (${model}): ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
 }

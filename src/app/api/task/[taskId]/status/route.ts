@@ -3,6 +3,16 @@ import { prisma } from '@/lib/prisma';
 import { STEP_DESCRIPTIONS } from '@/lib/constants';
 import { TaskStatus, TaskStatusResponse } from '@/types';
 
+// 解析 JSON 字符串
+const parseJson = (str: string | null) => {
+  if (!str) return null;
+  try {
+    return JSON.parse(str);
+  } catch {
+    return null;
+  }
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
@@ -18,6 +28,11 @@ export async function GET(
         totalSteps: true,
         failedStep: true,
         errorMessage: true,
+        // 新增：返回已完成步骤的分析数据
+        competitorAnalysis: true,
+        contentAnalysis: true,
+        generatedPrompt: true,
+        usedModels: true,
       },
     });
 
@@ -39,6 +54,11 @@ export async function GET(
       progress,
       failedStep: task.failedStep || undefined,
       errorMessage: task.errorMessage || undefined,
+      // 返回已完成步骤的分析数据（实时展示用）
+      competitorAnalysis: parseJson(task.competitorAnalysis),
+      contentAnalysis: parseJson(task.contentAnalysis),
+      generatedPrompt: task.generatedPrompt,
+      usedModels: parseJson(task.usedModels),
     };
 
     return NextResponse.json(response);

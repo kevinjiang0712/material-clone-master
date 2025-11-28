@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import TaskHistoryCard from './TaskHistoryCard';
 import Spinner from './ui/Spinner';
 
@@ -17,6 +18,7 @@ interface Task {
 }
 
 export default function HistoryButton() {
+  const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [total, setTotal] = useState(0);
@@ -45,6 +47,11 @@ export default function HistoryButton() {
     }
   }, [isOpen]);
 
+  // 确保只在客户端渲染 Portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // 定期更新任务数量
   useEffect(() => {
     const fetchTotal = async () => {
@@ -65,7 +72,10 @@ export default function HistoryButton() {
     return () => clearInterval(interval);
   }, []);
 
-  return (
+  // 在客户端挂载前不渲染
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       {/* 浮动按钮 */}
       <button
@@ -146,6 +156,7 @@ export default function HistoryButton() {
           </div>
         </>
       )}
-    </>
+    </>,
+    document.body
   );
 }

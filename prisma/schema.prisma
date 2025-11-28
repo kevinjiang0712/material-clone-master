@@ -15,16 +15,28 @@ model Task {
   failedStep          Int?      // 失败时的步骤号，用于断点重试
   competitorImagePath String?
   productImagePath    String?
-  resultImagePath     String?
+  resultImagePath     String?   // 保留兼容旧数据
+  resultImages        String?   // JSON 数组: [{provider, model, path, error?}]
+  selectedImageModels String?   // JSON 数组: ["jimen:doubao-seedream-4-0-250828", "openrouter:google/gemini-2.5-flash-image"]
   competitorAnalysis  String?   // 合并版式+风格分析
   contentAnalysis     String?
   generatedPrompt     String?
   usedModels          String?   // JSON: 每个步骤使用的模型名称
   errorMessage        String?
   totalCost           Float?    // 总成本（美元）
+  // 竞品基础信息
+  competitorName      String?   // 竞品名称
+  competitorCategory  String?   // 竞品类目
+  // 商品基础信息
+  productName         String?   // 商品名称
+  productCategory     String?   // 商品类目
+  sellingPoints       String?   // 核心卖点
+  targetAudience      String?   // 目标人群
+  brandTone           String?   // 品牌调性 (JSON 数组)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   apiCalls            ApiCall[]
+  stepTimings         StepTiming[]
 }
 
 model ApiCall {
@@ -40,5 +52,17 @@ model ApiCall {
   latency          Int?     // 延迟（毫秒）
   createdAt        DateTime @default(now())
 
+  @@index([taskId])
+}
+
+model StepTiming {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  step      Int      // 步骤号 1/2/3/4
+  duration  Int      // 耗时（毫秒）
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, step])
   @@index([taskId])
 }

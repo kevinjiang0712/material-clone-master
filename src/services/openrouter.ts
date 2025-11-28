@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
-import { LayoutAnalysis, StyleAnalysis, ContentAnalysis, CompetitorAnalysis } from '@/types';
+import { LayoutAnalysis, StyleAnalysis, ContentAnalysis, CompetitorAnalysis, CompetitorInfo, ProductInfo } from '@/types';
+import { API_TIMEOUT, API_RETRIES, RETRY_DELAY } from '@/lib/constants';
 
 // 带 generationId 的响应类型
 export interface AnalysisResponse<T> {
@@ -11,11 +12,43 @@ export interface AnalysisResponse<T> {
 const openrouter = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: process.env.OPENROUTER_API_KEY,
+  timeout: API_TIMEOUT,
   defaultHeaders: {
     'HTTP-Referer': process.env.OPENROUTER_SITE_URL,
     'X-Title': process.env.OPENROUTER_SITE_NAME,
   },
 });
+
+/**
+ * 带重试的 API 调用封装
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  context: string
+): Promise<T> {
+  let lastError: Error | null = null;
+  const maxAttempts = API_RETRIES + 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      lastError = new Error(`${errorMessage} (attempt ${attempt}/${maxAttempts})`);
+
+      if (attempt >= maxAttempts) {
+        console.error(`[OpenRouter] ${context}: All ${maxAttempts} attempts failed`);
+        throw lastError;
+      }
+
+      console.log(`[OpenRouter] ${context}: Attempt ${attempt}/${maxAttempts} failed: ${errorMessage}`);
+      console.log(`[OpenRouter] ${context}: Retrying in ${RETRY_DELAY}ms...`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+    }
+  }
+
+  throw lastError || new Error('Unknown error in withRetry');
+}
 
 // 获取配置的视觉模型
 const VISION_MODEL = process.env.OPENROUTER_VISION_MODEL || 'google/gemini-flash-1.5-8b';
@@ -131,6 +164,22 @@ const COMPETITOR_ANALYSIS_PROMPT = `你现在负责分析"竞品商品图"的版
 
 6. style_prompt: 根据以上风格自动生成的描述性 prompt（英文）
 
+## 第三部分：文案与卖点（copywriting）
+
+1. text_content（文案内容）
+逐条提取图片中出现的所有文字，每条包含：
+  - text: 文字内容（原文，保持原样）
+  - type: 文字类型（主标题 / 副标题 / 卖点文案 / 标签 / 价格 / 促销信息）
+  - emphasis: 强调程度（高 / 中 / 低）
+
+2. selling_points（卖点分析）
+  - main_selling_point: 核心卖点（一句话总结这张图想传达的主要卖点信息）
+  - points: 卖点列表数组，每个包含：
+    - point: 卖点描述
+    - category: 卖点类型（功能 / 情感 / 价格 / 品质 / 场景）
+  - target_audience: 目标用户画像（这张图想吸引什么样的人群）
+  - emotional_appeal: 情感诉求（解决什么痛点或满足什么需求）
+
 请严格按以下 JSON 格式输出，不要添加任何额外说明：
 {
   "layout": {
@@ -147,6 +196,19 @@ const COMPETITOR_ANALYSIS_PROMPT = `你现在负责分析"竞品商品图"的版
     "background_style": {...},
     "vibe": "...",
     "style_prompt": "..."
+  },
+  "copywriting": {
+    "text_content": [
+      { "text": "...", "type": "...", "emphasis": "..." }
+    ],
+    "selling_points": {
+      "main_selling_point": "...",
+      "points": [
+        { "point": "...", "category": "..." }
+      ],
+      "target_audience": "...",
+      "emotional_appeal": "..."
+    }
   }
 }`;
 
@@ -333,7 +395,7 @@ export async function analyzeStyle(imageBase64: string): Promise<StyleAnalysis> 
 export async function analyzeContent(imageBase64: string): Promise<AnalysisResponse<ContentAnalysis>> {
   console.log('[OpenRouter] Calling analyzeContent with model:', VISION_MODEL);
 
-  try {
+  return withRetry(async () => {
     const response = await openrouter.chat.completions.create({
       model: VISION_MODEL,
       messages: [
@@ -361,10 +423,7 @@ export async function analyzeContent(imageBase64: string): Promise<AnalysisRespo
     console.log('[OpenRouter] analyzeContent generationId:', generationId);
     console.log('[OpenRouter] analyzeContent completed successfully');
     return { data: result, generationId };
-  } catch (error) {
-    console.error('[OpenRouter] analyzeContent error:', error);
-    throw error;
-  }
+  }, 'analyzeContent');
 }
 
 // 合并分析竞品图（版式+风格）
@@ -372,7 +431,7 @@ export async function analyzeCompetitor(imageBase64: string): Promise<AnalysisRe
   console.log('[OpenRouter] Calling analyzeCompetitor with model:', VISION_MODEL);
   console.log('[OpenRouter] Image base64 length:', imageBase64.length);
 
-  try {
+  return withRetry(async () => {
     const response = await openrouter.chat.completions.create({
       model: VISION_MODEL,
       messages: [
@@ -387,7 +446,7 @@ export async function analyzeCompetitor(imageBase64: string): Promise<AnalysisRe
           ],
         },
       ],
-      max_tokens: 4000,
+      max_tokens: 6000,
     });
 
     console.log('[OpenRouter] analyzeCompetitor response status:', response.choices[0].finish_reason);
@@ -399,21 +458,22 @@ export async function analyzeCompetitor(imageBase64: string): Promise<AnalysisRe
     console.log('[OpenRouter] analyzeCompetitor generationId:', generationId);
     console.log('[OpenRouter] analyzeCompetitor completed successfully');
     return { data: result, generationId };
-  } catch (error) {
-    console.error('[OpenRouter] analyzeCompetitor error:', error);
-    throw error;
-  }
+  }, 'analyzeCompetitor');
 }
 
 export function synthesizePrompt(
   layout: LayoutAnalysis,
   style: StyleAnalysis,
-  content: ContentAnalysis
+  content: ContentAnalysis,
+  competitorInfo?: CompetitorInfo | null,
+  productInfo?: ProductInfo | null
 ): string {
   console.log('[OpenRouter] synthesizePrompt called');
   console.log('[OpenRouter] layout keys:', Object.keys(layout || {}));
   console.log('[OpenRouter] style keys:', Object.keys(style || {}));
   console.log('[OpenRouter] content keys:', Object.keys(content || {}));
+  console.log('[OpenRouter] competitorInfo:', competitorInfo);
+  console.log('[OpenRouter] productInfo:', productInfo);
 
   // 防御性检查
   if (!layout?.main_object) {
@@ -427,30 +487,60 @@ export function synthesizePrompt(
     console.error('[OpenRouter] content object:', JSON.stringify(content, null, 2));
   }
 
-  return `Create a professional e-commerce product image with the following specifications:
+  // 1. 构建产品约束部分（核心 - 放在最前面）
+  const productConstraints = `=== CRITICAL: PRODUCT PRESERVATION (MUST FOLLOW) ===
+You MUST keep the product EXACTLY as shown in the reference image:
+- Shape: ${content?.product_shape?.category || 'original shape'} (${content?.product_shape?.proportions || 'original proportions'})
+- Color: ${content?.color_profile?.primary_color || 'original color'}${content?.color_profile?.secondary_color ? ` with ${content.color_profile.secondary_color}` : ''}
+- Material: ${content?.product_surface?.material || 'original material'} (${content?.product_surface?.glossiness || 'original finish'})
+- Orientation: ${content?.product_orientation?.facing || 'front'} view, ${content?.product_orientation?.view_angle || 'eye level'}
 
-=== LAYOUT REQUIREMENTS ===
-- Main subject position: ${layout?.main_object?.position || 'center'}
-- View angle: ${layout?.main_object?.view_angle || 'front view'}
-- Background type: ${layout?.background_structure?.type || 'clean background'}
-- Layer sequence: ${layout?.layer_sequence?.join(' → ') || 'background → product'}
+DO NOT modify the product itself in any way.`;
 
-=== STYLE REQUIREMENTS ===
-- Primary color: ${style?.color_style?.primary_color || 'neutral'}
-- Secondary colors: ${style?.color_style?.secondary_colors?.join(', ') || 'complementary'}
-- Lighting: ${style?.lighting?.type || 'soft lighting'} from ${style?.lighting?.direction || 'front'}
-- Surface texture: ${style?.texture?.surface || 'smooth'}
-- Overall vibe: ${style?.vibe || 'professional'}
+  // 2. 构建风格参考部分
+  const styleReference = `=== STYLE TO APPLY ===
+Apply these visual elements to the background and lighting only:
+- Primary color theme: ${style?.color_style?.primary_color || 'neutral'}
+- Lighting: ${style?.lighting?.type || 'soft'} light from ${style?.lighting?.direction || 'front'}
+- Background: ${layout?.background_structure?.type || 'clean studio'} style
+- Surface texture feel: ${style?.texture?.surface || 'smooth'}
+- Overall mood: ${style?.vibe || 'professional'}`;
 
-=== PRODUCT DETAILS ===
-- Product shape: ${content?.product_shape?.category || 'product'}
-- Material: ${content?.product_surface?.material || 'standard material'}
-- Facing: ${content?.product_orientation?.facing || 'front facing'}
-- Primary color: ${content?.color_profile?.primary_color || 'natural color'}
+  // 3. 构建布局参考
+  const compositionGuide = `=== COMPOSITION ===
+- Position product: ${layout?.main_object?.position || 'center'}
+- View angle: ${layout?.main_object?.view_angle || 'front view'}`;
 
-=== STYLE PROMPT ===
-${style?.style_prompt || 'high-quality product photography'}
+  // 4. 用户提供的商品信息（可选）
+  let productContext = '';
+  if (productInfo?.productName) {
+    const contextParts: string[] = [];
+    contextParts.push(`- Product: ${productInfo.productName}`);
+    if (productInfo.productCategory) {
+      contextParts.push(`- Category: ${productInfo.productCategory}`);
+    }
+    if (productInfo.brandTone?.length) {
+      contextParts.push(`- Brand tone: ${productInfo.brandTone.join(', ')}`);
+    }
+    productContext = `\n=== PRODUCT CONTEXT ===\n${contextParts.join('\n')}`;
+  }
 
-Generate a high-quality, professional product photography image with studio lighting.
-No text, no watermarks. Clean, commercial-grade e-commerce visual.`;
+  // 5. 禁止项
+  const prohibitions = `=== STRICT PROHIBITIONS ===
+- DO NOT change product shape, size, or proportions
+- DO NOT alter product colors or materials
+- DO NOT add new elements to the product
+- NO text, NO watermarks, NO logos`;
+
+  return `${productConstraints}
+
+${styleReference}
+
+${compositionGuide}
+${productContext}
+
+${prohibitions}
+
+Create a professional e-commerce product photo showing the SAME product
+with enhanced styling. The product must be identical to the input image.`;
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { TaskResultResponse } from '@/types';
+import { TaskResultResponse, CostSummary, StepTimingInfo } from '@/types';
+import { USD_TO_CNY_RATE } from '@/lib/constants';
 
 export async function GET(
   request: NextRequest,
@@ -16,6 +17,8 @@ export async function GET(
         competitorImagePath: true,
         productImagePath: true,
         resultImagePath: true,
+        resultImages: true,
+        selectedImageModels: true,
         generatedPrompt: true,
         competitorAnalysis: true,
         contentAnalysis: true,
@@ -30,6 +33,13 @@ export async function GET(
             tokensPrompt: true,
             tokensCompletion: true,
             latency: true,
+          },
+          orderBy: { step: 'asc' },
+        },
+        stepTimings: {
+          select: {
+            step: true,
+            duration: true,
           },
           orderBy: { step: 'asc' },
         },
@@ -61,16 +71,47 @@ export async function GET(
       }
     };
 
+    // 判断模型是否为人民币计费（即梦/doubao）
+    const isRMBModel = (model: string | null): boolean => {
+      if (!model) return false;
+      return model.includes('jimen') || model.includes('doubao');
+    };
+
+    // 计算分币种成本
+    const calculateCostSummary = (): CostSummary | null => {
+      if (!task.apiCalls || task.apiCalls.length === 0) return null;
+
+      let usd = 0;
+      let cny = 0;
+
+      for (const call of task.apiCalls) {
+        if (isRMBModel(call.model)) {
+          cny += call.totalCost;
+        } else {
+          usd += call.totalCost;
+        }
+      }
+
+      // 计算参考总计（人民币）
+      const totalCny = cny + (usd * USD_TO_CNY_RATE);
+
+      return { usd, cny, totalCny };
+    };
+
     const response: TaskResultResponse = {
       competitorImagePath: task.competitorImagePath || '',
       productImagePath: task.productImagePath || '',
       resultImagePath: task.resultImagePath || '',
+      resultImages: parseJson(task.resultImages) || [],
+      selectedImageModels: parseJson(task.selectedImageModels) || [],
       generatedPrompt: task.generatedPrompt || '',
       competitorAnalysis: parseJson(task.competitorAnalysis),
       contentAnalysis: parseJson(task.contentAnalysis),
       usedModels: parseJson(task.usedModels),
       apiCalls: task.apiCalls,
       totalCost: task.totalCost,
+      costSummary: calculateCostSummary(),
+      stepTimings: task.stepTimings as StepTimingInfo[],
     };
 
     return NextResponse.json(response);

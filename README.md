@@ -7,9 +7,13 @@
 - **竞品图分析**: 自动提取竞品图的版式布局、视觉风格
 - **实拍图识别**: 识别产品形状、材质、朝向等特征
 - **智能提示词合成**: 综合分析结果生成图像生成提示词
-- **AI 图像生成**: 基于 OpenRouter API 调用图像生成模型
+- **多模型图像生成**: 支持多个 AI 图像生成模型并行调用
+  - OpenRouter: Gemini 2.5 Flash、GPT-Image 等
+  - 即梦 API: Doubao Seedream 系列模型
+- **竞品/商品信息表单**: 可输入竞品名称、商品卖点、品牌调性等增强生成效果
 - **任务历史**: 查看历史任务和生成结果
-- **断点重试**: 失败任务可从失败步骤继续执行
+- **断点重试 & 重新生成**: 失败任务可从失败步骤继续，成功任务可追加生成
+- **成本追踪**: 记录每次 API 调用成本，支持多币种（USD/CNY）汇总
 
 ## 技术栈
 
@@ -37,9 +41,11 @@ DATABASE_URL="file:./dev.db"
 # OpenRouter API 配置
 OPENROUTER_API_KEY="your-api-key"
 OPENROUTER_VISION_MODEL="google/gemini-flash-1.5-8b"
-OPENROUTER_IMAGE_MODEL="google/gemini-2.5-flash-image"
 OPENROUTER_SITE_URL="https://your-site.com"
 OPENROUTER_SITE_NAME="Material Clone Master"
+
+# 即梦 API 配置（可选）
+JIMEN_API_KEY="your-jimen-api-key"
 
 # Mock 模式 (设为 true 跳过真实 API 调用)
 USE_MOCK_GENERATION="false"
@@ -99,6 +105,7 @@ src/
 | `/api/task/[taskId]/status` | GET | 获取任务状态 |
 | `/api/task/[taskId]/result` | GET | 获取任务结果 |
 | `/api/task/[taskId]/retry` | POST | 重试失败任务 |
+| `/api/task/[taskId]/regenerate` | POST | 重新生成图片 |
 | `/api/tasks` | GET | 获取任务列表 |
 | `/api/upload` | POST | 上传图片 |
 

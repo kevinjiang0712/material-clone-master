@@ -4,14 +4,30 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ImageUploader from '@/components/ImageUploader';
 import ImagePreview from '@/components/ImagePreview';
+import CompetitorInfoForm from '@/components/CompetitorInfoForm';
+import ProductInfoForm from '@/components/ProductInfoForm';
+import ModelSelector, { DEFAULT_IMAGE_MODELS } from '@/components/ModelSelector';
 import Button from '@/components/ui/Button';
 import TaskHistoryList from '@/components/TaskHistoryList';
 import HistoryButton from '@/components/HistoryButton';
+import { CompetitorInfo, ProductInfo } from '@/types';
 
 export default function HomePage() {
   const router = useRouter();
   const [competitorImage, setCompetitorImage] = useState<string | null>(null);
+  const [competitorInfo, setCompetitorInfo] = useState<CompetitorInfo>({
+    competitorName: '',
+    competitorCategory: '',
+  });
   const [productImage, setProductImage] = useState<string | null>(null);
+  const [productInfo, setProductInfo] = useState<ProductInfo>({
+    productName: '',
+    productCategory: '',
+    sellingPoints: '',
+    targetAudience: '',
+    brandTone: [],
+  });
+  const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_IMAGE_MODELS);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +44,9 @@ export default function HomePage() {
         body: JSON.stringify({
           competitorImagePath: competitorImage,
           productImagePath: productImage,
+          competitorInfo,
+          productInfo,
+          selectedImageModels: selectedModels,
         }),
       });
 
@@ -63,8 +82,8 @@ export default function HomePage() {
           </div>
 
           {/* 上传区域 */}
-          <div className="grid md:grid-cols-2 gap-8 mb-8">
-            {/* 竞品图 */}
+          <div className="grid md:grid-cols-2 gap-8 mb-6">
+            {/* 竞品图 + 竞品信息 */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
@@ -75,40 +94,62 @@ export default function HomePage() {
                 </h2>
               </div>
               <p className="text-sm text-gray-500 mb-4">
-                上传你想模仿的电商产品图
+                上传竞品图并填写基本信息
               </p>
-              {competitorImage ? (
-                <ImagePreview
-                  src={competitorImage}
-                  onRemove={() => setCompetitorImage(null)}
-                />
-              ) : (
-                <ImageUploader type="competitor" onUpload={setCompetitorImage} />
-              )}
+
+              {/* 图片上传区域 */}
+              <div className="mb-4">
+                {competitorImage ? (
+                  <ImagePreview
+                    src={competitorImage}
+                    onRemove={() => setCompetitorImage(null)}
+                  />
+                ) : (
+                  <ImageUploader type="competitor" onUpload={setCompetitorImage} />
+                )}
+              </div>
+
+              {/* 竞品信息表单 */}
+              <CompetitorInfoForm value={competitorInfo} onChange={setCompetitorInfo} />
             </div>
 
-            {/* 实拍图 */}
+            {/* 实拍图 + 商品信息 */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold text-sm">
                   2
                 </span>
                 <h2 className="text-lg font-semibold text-gray-800">
-                  实拍图（你的产品）
+                  你的产品
                 </h2>
               </div>
               <p className="text-sm text-gray-500 mb-4">
-                上传你自己的商品照片
+                上传商品照片并填写基本信息
               </p>
-              {productImage ? (
-                <ImagePreview
-                  src={productImage}
-                  onRemove={() => setProductImage(null)}
-                />
-              ) : (
-                <ImageUploader type="product" onUpload={setProductImage} />
-              )}
+
+              {/* 图片上传区域 */}
+              <div className="mb-4">
+                {productImage ? (
+                  <ImagePreview
+                    src={productImage}
+                    onRemove={() => setProductImage(null)}
+                  />
+                ) : (
+                  <ImageUploader type="product" onUpload={setProductImage} />
+                )}
+              </div>
+
+              {/* 商品信息表单 */}
+              <ProductInfoForm value={productInfo} onChange={setProductInfo} />
             </div>
+          </div>
+
+          {/* 模型选择 */}
+          <div className="mb-8">
+            <ModelSelector
+              selectedModels={selectedModels}
+              onChange={setSelectedModels}
+            />
           </div>
 
           {/* 错误提示 */}

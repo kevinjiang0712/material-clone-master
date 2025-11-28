@@ -20,9 +20,8 @@ interface TaskHistoryCardProps {
 
 const STATUS_CONFIG = {
   pending: { label: '等待中', color: 'text-gray-500', bg: 'bg-gray-100', icon: '⏸️' },
-  analyzing_layout: { label: '分析版式', color: 'text-blue-500', bg: 'bg-blue-100', icon: '🔄' },
-  analyzing_style: { label: '分析风格', color: 'text-blue-500', bg: 'bg-blue-100', icon: '🔄' },
-  analyzing_content: { label: '分析内容', color: 'text-blue-500', bg: 'bg-blue-100', icon: '🔄' },
+  analyzing_competitor: { label: '分析竞品图', color: 'text-blue-500', bg: 'bg-blue-100', icon: '🔄' },
+  analyzing_content: { label: '分析实拍图', color: 'text-blue-500', bg: 'bg-blue-100', icon: '🔄' },
   generating_prompt: { label: '生成提示词', color: 'text-blue-500', bg: 'bg-blue-100', icon: '🔄' },
   generating_image: { label: '生成图像', color: 'text-blue-500', bg: 'bg-blue-100', icon: '🔄' },
   completed: { label: '成功', color: 'text-green-600', bg: 'bg-green-100', icon: '✅' },
@@ -84,10 +83,19 @@ export default function TaskHistoryCard({ task }: TaskHistoryCardProps) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-4 border border-gray-100">
+      {/* 任务ID */}
+      <div
+        className="text-xs text-gray-400 font-mono mb-2 truncate cursor-pointer hover:text-gray-600"
+        title="点击复制"
+        onClick={() => navigator.clipboard.writeText(task.id)}
+      >
+        {task.id}
+      </div>
+
       {/* 状态和时间 */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className={`${statusConfig.bg} ${statusConfig.color} px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1`}>
+          <span className={`${statusConfig.bg} ${statusConfig.color} px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1`}>
             <span>{statusConfig.icon}</span>
             <span>{statusConfig.label}</span>
           </span>
@@ -108,6 +116,7 @@ export default function TaskHistoryCard({ task }: TaskHistoryCardProps) {
             src={task.competitorImagePath}
             alt="竞品图"
             fill
+            sizes="(max-width: 768px) 33vw, 200px"
             className="object-cover"
           />
           <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs px-1 py-0.5 text-center">
@@ -121,6 +130,7 @@ export default function TaskHistoryCard({ task }: TaskHistoryCardProps) {
             src={task.productImagePath}
             alt="实拍图"
             fill
+            sizes="(max-width: 768px) 33vw, 200px"
             className="object-cover"
           />
           <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs px-1 py-0.5 text-center">
@@ -136,6 +146,7 @@ export default function TaskHistoryCard({ task }: TaskHistoryCardProps) {
                 src={task.resultImagePath}
                 alt="生成结果"
                 fill
+                sizes="(max-width: 768px) 33vw, 200px"
                 className="object-cover"
               />
               <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs px-1 py-0.5 text-center">

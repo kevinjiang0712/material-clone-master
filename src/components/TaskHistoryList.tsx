@@ -23,7 +23,7 @@ interface TaskHistoryListProps {
 }
 
 export default function TaskHistoryList({
-  limit = 3,
+  limit = 6,
   showTitle = true,
   showLoadMore = false,
 }: TaskHistoryListProps) {
@@ -119,7 +119,7 @@ export default function TaskHistoryList({
       )}
 
       {/* 任务列表 */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-2">
         {tasks.map((task) => (
           <TaskHistoryCard key={task.id} task={task} />
         ))}

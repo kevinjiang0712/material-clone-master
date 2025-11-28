@@ -1,13 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import * as openrouterService from './openrouter';
 import * as imageGeneratorService from './imageGenerator';
-import { recordApiCost } from './costTracker';
+import { extractText as baiduOcrExtractText } from './baiduOcr';
+import { recordApiCost, recordFixedCost } from './costTracker';
 import {
   getImageBase64,
   saveImageFromUrl,
   saveImageFromBase64,
 } from './imageProcessor';
-import { TaskStatus, CompetitorAnalysis, ContentAnalysis, UsedModels } from '@/types';
+import { TaskStatus, CompetitorAnalysis, ContentAnalysis, UsedModels, CompetitorInfo, ProductInfo, ResultImage } from '@/types';
+import { DEFAULT_IMAGE_MODELS, AVAILABLE_IMAGE_MODELS } from '@/lib/constants';
 
 /**
  * 更新任务状态
@@ -66,6 +68,24 @@ function parseJson<T>(str: string | null): T | null {
     return JSON.parse(str) as T;
   } catch {
     return null;
+  }
+}
+
+/**
+ * 记录步骤耗时
+ */
+async function recordStepTiming(taskId: string, step: number, duration: number): Promise<void> {
+  try {
+    await prisma.stepTiming.upsert({
+      where: {
+        taskId_step: { taskId, step },
+      },
+      update: { duration },
+      create: { taskId, step, duration },
+    });
+    console.log(`[Task ${taskId}] Step ${step} timing recorded: ${duration}ms`);
+  } catch (error) {
+    console.error(`[Task ${taskId}] Failed to record step timing:`, error);
   }
 }
 
@@ -134,58 +154,116 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       }
     }
 
-    // 步骤 1: 分析竞品图（版式+风格）
-    if (startFromStep <= 1) {
-      currentExecutingStep = 1;
-      console.log(`[Task ${taskId}] Step 1: Analyzing competitor image (layout + style)...`);
-      await updateTaskStatus(taskId, 'analyzing_competitor', 1);
-
-      competitorBase64 = await getImageBase64(task.competitorImagePath);
-      const competitorResult = await openrouterService.analyzeCompetitor(competitorBase64);
-      competitorAnalysis = competitorResult.data;
-
-      await prisma.task.update({
-        where: { id: taskId },
-        data: { competitorAnalysis: JSON.stringify(competitorAnalysis) },
-      });
-
-      // 记录成本
-      if (competitorResult.generationId) {
-        await recordApiCost(taskId, 1, competitorResult.generationId);
-      }
-
-      console.log(`[Task ${taskId}] Competitor analysis completed`);
-    }
-
-    // 步骤 2: 分析实拍图内容
+    // 步骤 1 + 2: 并行执行竞品图分析和产品图分析（优化：减少 3-8 秒）
     if (startFromStep <= 2) {
-      currentExecutingStep = 2;
-      console.log(`[Task ${taskId}] Step 2: Analyzing content...`);
-      await updateTaskStatus(taskId, 'analyzing_content', 2);
+      const parallelStart = Date.now();
+      console.log(`[Task ${taskId}] Step 1+2: Starting parallel analysis...`);
 
-      productBase64 = await getImageBase64(task.productImagePath);
-      console.log(`[Task ${taskId}] Product image loaded, base64 length:`, productBase64.length);
+      // 预加载所有图片（并行）
+      const [competitorBase64Loaded, productBase64Loaded] = await Promise.all([
+        startFromStep <= 1 ? getImageBase64(task.competitorImagePath) : Promise.resolve(null),
+        startFromStep <= 2 ? getImageBase64(task.productImagePath) : Promise.resolve(null),
+      ]);
+      competitorBase64 = competitorBase64Loaded;
+      productBase64 = productBase64Loaded;
 
-      const contentResult = await openrouterService.analyzeContent(productBase64);
-      contentAnalysis = contentResult.data;
-      console.log(`[Task ${taskId}] Content analysis result:`, JSON.stringify(contentAnalysis, null, 2));
+      console.log(`[Task ${taskId}] Images preloaded in ${Date.now() - parallelStart}ms`);
 
-      await prisma.task.update({
-        where: { id: taskId },
-        data: { contentAnalysis: JSON.stringify(contentAnalysis) },
-      });
+      // 并行执行 Step 1 和 Step 2
+      const analysisPromises: Promise<void>[] = [];
 
-      // 记录成本
-      if (contentResult.generationId) {
-        await recordApiCost(taskId, 2, contentResult.generationId);
+      // Step 1: 分析竞品图（版式+风格）+ 百度 OCR
+      if (startFromStep <= 1) {
+        analysisPromises.push((async () => {
+          currentExecutingStep = 1;
+          const step1Start = Date.now();
+          console.log(`[Task ${taskId}] Step 1: Analyzing competitor image (layout + style) + OCR...`);
+          await updateTaskStatus(taskId, 'analyzing_competitor', 1);
+
+          // 并行调用：大模型分析 + 百度 OCR
+          const [competitorResult, ocrTexts] = await Promise.all([
+            openrouterService.analyzeCompetitor(competitorBase64!),
+            baiduOcrExtractText(competitorBase64!),
+          ]);
+
+          // 合并结果：大模型分析 + OCR 文字
+          competitorAnalysis = {
+            ...competitorResult.data,
+            ocrTexts,
+          };
+
+          await prisma.task.update({
+            where: { id: taskId },
+            data: { competitorAnalysis: JSON.stringify(competitorAnalysis) },
+          });
+
+          // 异步记录成本（不阻塞主流程）
+          if (competitorResult.generationId) {
+            recordApiCost(taskId, 1, competitorResult.generationId).catch(err =>
+              console.error(`[Task ${taskId}] Failed to record step 1 cost:`, err)
+            );
+          }
+
+          // 异步记录步骤耗时（不阻塞主流程）
+          recordStepTiming(taskId, 1, Date.now() - step1Start).catch(err =>
+            console.error(`[Task ${taskId}] Failed to record step 1 timing:`, err)
+          );
+
+          console.log(`[Task ${taskId}] Step 1 completed in ${Date.now() - step1Start}ms, OCR found ${ocrTexts.length} texts`);
+        })());
       }
 
-      console.log(`[Task ${taskId}] Content analysis completed and saved`);
+      // Step 2: 分析实拍图内容
+      if (startFromStep <= 2 && productBase64) {
+        analysisPromises.push((async () => {
+          // 如果 Step 1 也在执行，等待一小会让状态更新有序
+          if (startFromStep <= 1) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          currentExecutingStep = 2;
+          const step2Start = Date.now();
+          console.log(`[Task ${taskId}] Step 2: Analyzing content...`);
+
+          // 只有当 Step 1 不在本次执行时才更新状态（避免状态跳跃）
+          if (startFromStep > 1) {
+            await updateTaskStatus(taskId, 'analyzing_content', 2);
+          }
+
+          const contentResult = await openrouterService.analyzeContent(productBase64!);
+          contentAnalysis = contentResult.data;
+          console.log(`[Task ${taskId}] Content analysis result:`, JSON.stringify(contentAnalysis, null, 2));
+
+          await prisma.task.update({
+            where: { id: taskId },
+            data: { contentAnalysis: JSON.stringify(contentAnalysis) },
+          });
+
+          // 异步记录成本（不阻塞主流程）
+          if (contentResult.generationId) {
+            recordApiCost(taskId, 2, contentResult.generationId).catch(err =>
+              console.error(`[Task ${taskId}] Failed to record step 2 cost:`, err)
+            );
+          }
+
+          // 异步记录步骤耗时（不阻塞主流程）
+          recordStepTiming(taskId, 2, Date.now() - step2Start).catch(err =>
+            console.error(`[Task ${taskId}] Failed to record step 2 timing:`, err)
+          );
+
+          console.log(`[Task ${taskId}] Step 2 completed in ${Date.now() - step2Start}ms`);
+        })());
+      }
+
+      // 等待所有分析完成
+      await Promise.all(analysisPromises);
+
+      console.log(`[Task ${taskId}] Parallel analysis completed in ${Date.now() - parallelStart}ms`);
     }
 
     // 步骤 3: 合成提示词
     if (startFromStep <= 3) {
       currentExecutingStep = 3;
+      const step3Start = Date.now();
       console.log(`[Task ${taskId}] Step 3: Generating prompt...`);
       await updateTaskStatus(taskId, 'generating_prompt', 3);
 
@@ -193,10 +271,34 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       console.log(`[Task ${taskId}] - competitorAnalysis:`, JSON.stringify(competitorAnalysis, null, 2));
       console.log(`[Task ${taskId}] - contentAnalysis:`, JSON.stringify(contentAnalysis, null, 2));
 
+      // 构建竞品信息
+      const competitorInfo: CompetitorInfo | null = task.competitorName
+        ? {
+            competitorName: task.competitorName,
+            competitorCategory: task.competitorCategory || undefined,
+          }
+        : null;
+
+      // 构建商品信息
+      const productInfo: ProductInfo | null = task.productName
+        ? {
+            productName: task.productName,
+            productCategory: task.productCategory || undefined,
+            sellingPoints: task.sellingPoints || undefined,
+            targetAudience: task.targetAudience || undefined,
+            brandTone: task.brandTone ? JSON.parse(task.brandTone) : undefined,
+          }
+        : null;
+
+      console.log(`[Task ${taskId}] - competitorInfo:`, JSON.stringify(competitorInfo, null, 2));
+      console.log(`[Task ${taskId}] - productInfo:`, JSON.stringify(productInfo, null, 2));
+
       generatedPrompt = openrouterService.synthesizePrompt(
         competitorAnalysis!.layout,
         competitorAnalysis!.style,
-        contentAnalysis!
+        contentAnalysis!,
+        competitorInfo,
+        productInfo
       );
 
       console.log(`[Task ${taskId}] Generated prompt:\n${generatedPrompt}`);
@@ -205,12 +307,19 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
         where: { id: taskId },
         data: { generatedPrompt },
       });
+
+      // 异步记录步骤耗时（不阻塞主流程）
+      recordStepTiming(taskId, 3, Date.now() - step3Start).catch(err =>
+        console.error(`[Task ${taskId}] Failed to record step 3 timing:`, err)
+      );
+
       console.log(`[Task ${taskId}] Prompt generated and saved`);
     }
 
-    // 步骤 4: 生成图片
+    // 步骤 4: 生成图片（支持多模型并行）
     if (startFromStep <= 4) {
       currentExecutingStep = 4;
+      const step4Start = Date.now();
       console.log(`[Task ${taskId}] Step 4: Generating image...`);
       await updateTaskStatus(taskId, 'generating_image', 4);
 
@@ -219,48 +328,124 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
         productBase64 = await getImageBase64(task.productImagePath);
       }
 
-      console.log(`[Task ${taskId}] Calling image generator...`);
-      const generationResult = await imageGeneratorService.generateImage(
-        productBase64,
-        generatedPrompt!,
-        task.productImagePath
-      );
-
-      console.log(`[Task ${taskId}] Image generation completed`);
-      console.log(`[Task ${taskId}] Result has imageBase64:`, !!generationResult.imageBase64);
-      console.log(`[Task ${taskId}] Result has imageUrl:`, !!generationResult.imageUrl);
-
-      // 保存生成的图片
-      let resultPath: string;
-      if (generationResult.imageBase64) {
-        console.log(`[Task ${taskId}] Saving image from base64...`);
-        resultPath = await saveImageFromBase64(generationResult.imageBase64, taskId);
-        console.log(`[Task ${taskId}] Image saved to:`, resultPath);
-      } else {
-        console.log(`[Task ${taskId}] Saving image from URL:`, generationResult.imageUrl);
-        resultPath = await saveImageFromUrl(generationResult.imageUrl, taskId);
-        console.log(`[Task ${taskId}] Image saved to:`, resultPath);
+      // 获取选择的模型列表
+      let selectedModels: string[] = DEFAULT_IMAGE_MODELS;
+      if (task.selectedImageModels) {
+        try {
+          selectedModels = JSON.parse(task.selectedImageModels);
+        } catch {
+          console.warn(`[Task ${taskId}] Failed to parse selectedImageModels, using default`);
+        }
       }
 
-      // 记录成本
-      if (generationResult.generationId) {
-        await recordApiCost(taskId, 4, generationResult.generationId);
+      console.log(`[Task ${taskId}] Selected models:`, selectedModels);
+
+      // 当前时间戳（用于分组显示）
+      const createdAt = new Date().toISOString();
+
+      // 并行调用所有选中的模型
+      const generationPromises = selectedModels.map(async (modelId): Promise<ResultImage> => {
+        const [provider] = modelId.split(':') as ['openrouter' | 'jimen'];
+        const modelConfig = AVAILABLE_IMAGE_MODELS.find(m => m.id === modelId);
+        const modelName = modelConfig?.model || modelId;
+
+        console.log(`[Task ${taskId}] Starting generation with model: ${modelId}`);
+        const modelStart = Date.now();
+
+        try {
+          const result = await imageGeneratorService.generateImageWithModel(
+            modelId,
+            productBase64!,
+            generatedPrompt!,
+            task.productImagePath!
+          );
+
+          const modelDuration = Date.now() - modelStart;
+
+          // 保存图片
+          let path: string;
+          const suffix = modelId.replace(/[:/]/g, '_');  // 文件名安全的后缀
+          if (result.imageBase64) {
+            path = await saveImageFromBase64(result.imageBase64, `${taskId}_${suffix}`);
+          } else {
+            path = await saveImageFromUrl(result.imageUrl, `${taskId}_${suffix}`);
+          }
+
+          console.log(`[Task ${taskId}] Model ${modelId} succeeded in ${modelDuration}ms, saved to: ${path}`);
+
+          // 获取成本
+          const modelCost = result.cost;
+
+          // 异步记录成本到 ApiCall 表（不阻塞主流程）
+          if (result.cost !== undefined) {
+            // 固定价格服务（如即梦）：直接记录返回的成本
+            recordFixedCost(taskId, 4, result.cost, modelId, result.generationId).catch(err =>
+              console.error(`[Task ${taskId}] Failed to record step 4 cost for ${modelId}:`, err)
+            );
+          } else if (result.generationId) {
+            // OpenRouter：通过 API 查询成本
+            recordApiCost(taskId, 4, result.generationId).catch(err =>
+              console.error(`[Task ${taskId}] Failed to record step 4 cost for ${modelId}:`, err)
+            );
+          }
+
+          return {
+            provider,
+            model: modelName,
+            path,
+            createdAt,
+            cost: modelCost,
+            duration: modelDuration,
+          };
+        } catch (error) {
+          const modelDuration = Date.now() - modelStart;
+          console.error(`[Task ${taskId}] Model ${modelId} failed in ${modelDuration}ms:`, error);
+          return {
+            provider,
+            model: modelName,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            createdAt,
+            duration: modelDuration,
+          };
+        }
+      });
+
+      // 等待所有生成完成
+      const resultImages = await Promise.all(generationPromises);
+
+      console.log(`[Task ${taskId}] All generations completed:`, resultImages);
+
+      // 检查是否至少有一张成功
+      const successfulImages = resultImages.filter(r => r.path && !r.error);
+      const hasAnySuccess = successfulImages.length > 0;
+
+      if (!hasAnySuccess) {
+        // 所有模型都失败
+        const errors = resultImages.map(r => `${r.model}: ${r.error}`).join('; ');
+        throw new Error(`All image generation models failed: ${errors}`);
       }
 
-      // 记录使用的模型
+      // 记录使用的模型（取第一个成功的作为主模型）
+      const primaryModel = successfulImages[0];
       const usedModels: UsedModels = {
         step1_competitor: openrouterService.getVisionModel(),
         step2_content: openrouterService.getVisionModel(),
         step3_prompt: '本地处理',
-        step4_image: imageGeneratorService.getImageModel(),
+        step4_image: selectedModels.join(', '),
       };
+
+      // 异步记录步骤耗时（不阻塞主流程）
+      recordStepTiming(taskId, 4, Date.now() - step4Start).catch(err =>
+        console.error(`[Task ${taskId}] Failed to record step 4 timing:`, err)
+      );
 
       // 完成
       await prisma.task.update({
         where: { id: taskId },
         data: {
           status: 'completed',
-          resultImagePath: resultPath,
+          resultImagePath: primaryModel.path,  // 兼容旧字段，取第一张成功的
+          resultImages: JSON.stringify(resultImages),
           currentStep: 4,
           failedStep: null,
           errorMessage: null,
@@ -269,6 +454,7 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       });
 
       console.log(`[Task ${taskId}] Processing completed successfully`);
+      console.log(`[Task ${taskId}] Successful images: ${successfulImages.length}/${resultImages.length}`);
       console.log(`[Task ${taskId}] Used models:`, usedModels);
     }
   } catch (error) {
