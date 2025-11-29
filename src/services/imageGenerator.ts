@@ -1,5 +1,6 @@
 import { sleep } from '@/lib/utils';
 import { fetchWithRetry } from '@/lib/fetchWithTimeout';
+import { GEMINI_MODELS } from '@/lib/constants';
 import * as jimenImageGenerator from './jimenImageGenerator';
 
 /**
@@ -80,8 +81,8 @@ async function realGenerateImage(
   console.log(`[ImageGenerator] Prompt preview: ${prompt.substring(0, 200)}...`);
 
   try {
-    // 简化的请求体 - 按照官方文档格式
-    const requestBody = {
+    // 构建基础请求体
+    const requestBody: Record<string, unknown> = {
       model: IMAGE_MODEL,
       messages: [
         {
@@ -89,16 +90,15 @@ async function realGenerateImage(
           content: [
             {
               type: 'text',
-              text: `TASK: Transform this product into a professional e-commerce photo.
+              text: `TASK: Create a stunning e-commerce product photo inspired by competitor's style.
 
-CRITICAL RULES:
-1. The product in output must be IDENTICAL to input - same shape, color, material
-2. Only change: background, lighting, composition, atmosphere
-3. Do NOT redesign or reimagine the product
+KEY PRINCIPLE:
+- Product's PHYSICAL properties (shape, color, material) must stay IDENTICAL
+- Everything else (background, scene, props, lighting, atmosphere) can be creatively enhanced
 
 ${prompt}
 
-Output: Professional product photo with the EXACT SAME product, styled professionally.`,
+Generate a high-quality product photo that looks professional and appealing for online sales.`,
             },
             {
               type: 'image_url',
@@ -111,7 +111,16 @@ Output: Professional product photo with the EXACT SAME product, styled professio
       ],
     };
 
-    const firstContent = requestBody.messages[0].content[0];
+    // Gemini 模型添加 HIGH 分辨率参数以获取最佳图像质量
+    if (GEMINI_MODELS.includes(IMAGE_MODEL)) {
+      requestBody.generation_config = {
+        media_resolution: 'HIGH',
+      };
+      console.log(`[ImageGenerator] Added media_resolution: HIGH for Gemini model`);
+    }
+
+    const messages = requestBody.messages as Array<{ role: string; content: Array<{ type: string; text?: string }> }>;
+    const firstContent = messages[0].content[0];
     const textPreview = 'text' in firstContent && firstContent.text ? firstContent.text.substring(0, 100) + '...' : '';
     console.log(`[ImageGenerator] Request body (without image):`, JSON.stringify({
       model: requestBody.model,
@@ -337,7 +346,8 @@ async function realGenerateImageWithModel(
   console.log(`[ImageGenerator] Prompt preview: ${prompt.substring(0, 200)}...`);
 
   try {
-    const requestBody = {
+    // 构建基础请求体
+    const requestBody: Record<string, unknown> = {
       model: model,
       messages: [
         {
@@ -345,16 +355,15 @@ async function realGenerateImageWithModel(
           content: [
             {
               type: 'text',
-              text: `TASK: Transform this product into a professional e-commerce photo.
+              text: `TASK: Create a stunning e-commerce product photo inspired by competitor's style.
 
-CRITICAL RULES:
-1. The product in output must be IDENTICAL to input - same shape, color, material
-2. Only change: background, lighting, composition, atmosphere
-3. Do NOT redesign or reimagine the product
+KEY PRINCIPLE:
+- Product's PHYSICAL properties (shape, color, material) must stay IDENTICAL
+- Everything else (background, scene, props, lighting, atmosphere) can be creatively enhanced
 
 ${prompt}
 
-Output: Professional product photo with the EXACT SAME product, styled professionally.`,
+Generate a high-quality product photo that looks professional and appealing for online sales.`,
             },
             {
               type: 'image_url',
@@ -366,6 +375,14 @@ Output: Professional product photo with the EXACT SAME product, styled professio
         },
       ],
     };
+
+    // Gemini 模型添加 HIGH 分辨率参数以获取最佳图像质量
+    if (GEMINI_MODELS.includes(model)) {
+      requestBody.generation_config = {
+        media_resolution: 'HIGH',
+      };
+      console.log(`[ImageGenerator] Added media_resolution: HIGH for Gemini model`);
+    }
 
     const response = await fetchWithRetry('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',

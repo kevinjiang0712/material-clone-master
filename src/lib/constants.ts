@@ -89,3 +89,29 @@ export const USD_TO_CNY_RATE = 7.2;
 export const API_TIMEOUT = 120_000;  // 统一超时时间：2分钟
 export const API_RETRIES = 1;        // 统一重试次数：1次
 export const RETRY_DELAY = 1000;     // 重试间隔：1秒
+
+// 各模型最优输入分辨率配置
+export const MODEL_INPUT_RESOLUTION: Record<string, { width: number; height: number; align?: number }> = {
+  // Flux 2 Pro - 官方推荐 ≤2MP，尺寸需为 16 的倍数
+  'openrouter:black-forest-labs/flux.2-pro': { width: 2048, height: 2048, align: 16 },
+
+  // 即梦 - 支持 4K 输出，高分辨率输入有益
+  'jimen:doubao-seedream-4-0-250828': { width: 2048, height: 2048 },
+
+  // Gemini 系列 - 配合 HIGH 分辨率模式
+  'openrouter:google/gemini-2.5-flash-image': { width: 2048, height: 2048 },
+  'openrouter:google/gemini-3-pro-image-preview': { width: 2048, height: 2048 },
+
+  // GPT-5 Image 系列
+  'openrouter:openai/gpt-5-image-mini': { width: 2048, height: 2048 },
+  'openrouter:openai/gpt-5-image': { width: 2048, height: 2048 },
+};
+
+// 默认输入分辨率（未配置的模型使用）
+export const DEFAULT_INPUT_RESOLUTION = { width: 2048, height: 2048 };
+
+// Gemini 模型列表（需要添加 media_resolution: HIGH 参数）
+export const GEMINI_MODELS = [
+  'google/gemini-2.5-flash-image',
+  'google/gemini-3-pro-image-preview',
+];

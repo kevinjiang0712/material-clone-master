@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { existsSync } from 'fs';
+import { MODEL_INPUT_RESOLUTION, DEFAULT_INPUT_RESOLUTION } from '@/lib/constants';
 
 const UPLOADS_DIR = join(process.cwd(), 'public', 'uploads');
 
@@ -29,13 +30,9 @@ export async function processAndSaveImage(
   const targetDir = join(UPLOADS_DIR, type);
   await ensureDir(targetDir);
 
-  // 处理图片：调整大小并压缩
+  // 处理图片：仅压缩质量，保留原始尺寸（生成时按模型动态缩放）
   const processedBuffer = await sharp(buffer)
-    .resize(1024, 1024, {
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .jpeg({ quality: 85 })
+    .jpeg({ quality: 90 })
     .toBuffer();
 
   const filename = `${uuidv4()}.jpg`;
@@ -134,4 +131,56 @@ export async function getImageDimensions(
     width: metadata.width || 0,
     height: metadata.height || 0,
   };
+}
+
+/**
+ * 根据模型配置动态缩放图片并返回 base64
+ *
+ * @param imagePath - 相对于 public 目录的图片路径
+ * @param modelId - 模型 ID，用于获取最优分辨率配置
+ * @returns base64 编码的缩放后图片
+ */
+export async function getImageBase64ForModel(
+  imagePath: string,
+  modelId: string
+): Promise<string> {
+  const fullPath = join(process.cwd(), 'public', imagePath);
+  const config = MODEL_INPUT_RESOLUTION[modelId] || DEFAULT_INPUT_RESOLUTION;
+  const { width: maxWidth, height: maxHeight, align } = config;
+
+  // 获取原图尺寸
+  const metadata = await sharp(fullPath).metadata();
+  const origWidth = metadata.width || maxWidth;
+  const origHeight = metadata.height || maxHeight;
+
+  let targetWidth = Math.min(origWidth, maxWidth);
+  let targetHeight = Math.min(origHeight, maxHeight);
+
+  // 保持宽高比
+  const aspectRatio = origWidth / origHeight;
+  if (targetWidth / targetHeight > aspectRatio) {
+    targetWidth = Math.round(targetHeight * aspectRatio);
+  } else {
+    targetHeight = Math.round(targetWidth / aspectRatio);
+  }
+
+  // 如果需要对齐（如 Flux 要求 16 的倍数）
+  if (align) {
+    targetWidth = Math.floor(targetWidth / align) * align;
+    targetHeight = Math.floor(targetHeight / align) * align;
+    // 确保最小尺寸
+    targetWidth = Math.max(targetWidth, align);
+    targetHeight = Math.max(targetHeight, align);
+  }
+
+  console.log(`[ImageProcessor] Resizing for model ${modelId}: ${origWidth}x${origHeight} -> ${targetWidth}x${targetHeight}`);
+
+  const buffer = await sharp(fullPath)
+    .resize(targetWidth, targetHeight, {
+      fit: 'fill',
+    })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+
+  return buffer.toString('base64');
 }

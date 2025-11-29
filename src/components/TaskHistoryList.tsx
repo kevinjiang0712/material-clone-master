@@ -71,6 +71,7 @@ export default function TaskHistoryList({
     }, 5000);
 
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [limit]);
 
   const handleLoadMore = () => {

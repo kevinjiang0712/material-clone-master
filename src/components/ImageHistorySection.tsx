@@ -63,8 +63,7 @@ export default function ImageHistorySection({
     return new Date(b).getTime() - new Date(a).getTime();
   });
 
-  // 最新一批（已在 ImageComparison 中显示）和历史批次
-  const latestKey = sortedKeys[0];
+  // 历史批次（排除最新一批，最新一批已在 ImageComparison 中显示）
   const historyKeys = sortedKeys.slice(1);
 
   // 历史图片（排除最新批次）
@@ -102,7 +101,7 @@ export default function ImageHistorySection({
       {/* 展开内容 */}
       {isExpanded && (
         <div className="p-4 space-y-4">
-          {historyKeys.map((key, groupIndex) => {
+          {historyKeys.map((key) => {
             const groupImages = groups.get(key) || [];
             const successfulImages = groupImages.filter(r => r.path && !r.error);
 

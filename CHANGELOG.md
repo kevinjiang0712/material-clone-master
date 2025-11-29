@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.5.0] - 2024-11-30
+
+### Added
+
+- **输入图片分辨率优化**:
+  - 上传图片时保留原图尺寸，不再强制缩放到 1024×1024
+  - 新增 `getImageBase64ForModel()` 函数，为每个模型动态生成最优分辨率输入
+  - 新增 `MODEL_INPUT_RESOLUTION` 配置，定义各模型最佳输入分辨率
+  - Flux 2 Pro 自动对齐到 16 像素倍数，符合 API 要求
+
+- **Gemini 高分辨率模式**:
+  - Gemini 模型请求自动添加 `media_resolution: 'HIGH'` 参数
+  - 新增 `GEMINI_MODELS` 配置列表
+
+- **OCR 辅助文案分析**:
+  - 改进竞品分析流程：先执行百度 OCR，再将结果传给大模型
+  - OCR 识别的文字注入到分析提示词，提升文案卖点提取准确性
+  - 解决大模型自行识别中文文字不准确的问题
+
+### Changed
+
+- `analyzeCompetitor()` 函数新增 `ocrTexts` 参数，支持 OCR 结果辅助分析
+- `COMPETITOR_ANALYSIS_PROMPT` 提示词优化，要求大模型使用 OCR 结果进行文案分析
+- Step 1 执行顺序从并行改为串行（先 OCR → 再大模型分析）
+- 输入图片分辨率从固定 1MP 提升到最高 4MP，显著提升生成图片细节
+
+### Performance
+
+- 输入分辨率提升约 4 倍（1024² → 2048²）
+- Flux 成本相应增加（按像素计费）
+- Step 1 耗时略增（+1-2秒，因 OCR 改为串行）
+
+---
+
 ## [0.4.0] - 2024-11-29
 
 ### Added

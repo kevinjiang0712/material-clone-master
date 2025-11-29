@@ -5,6 +5,7 @@ import { extractText as baiduOcrExtractText } from './baiduOcr';
 import { recordApiCost, recordFixedCost } from './costTracker';
 import {
   getImageBase64,
+  getImageBase64ForModel,
   saveImageFromUrl,
   saveImageFromBase64,
 } from './imageProcessor';
@@ -173,6 +174,7 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       const analysisPromises: Promise<void>[] = [];
 
       // Step 1: 分析竞品图（版式+风格）+ 百度 OCR
+      // 改进：先执行 OCR，再将 OCR 结果传给大模型辅助文案分析
       if (startFromStep <= 1) {
         analysisPromises.push((async () => {
           currentExecutingStep = 1;
@@ -180,11 +182,14 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
           console.log(`[Task ${taskId}] Step 1: Analyzing competitor image (layout + style) + OCR...`);
           await updateTaskStatus(taskId, 'analyzing_competitor', 1);
 
-          // 并行调用：大模型分析 + 百度 OCR
-          const [competitorResult, ocrTexts] = await Promise.all([
-            openrouterService.analyzeCompetitor(competitorBase64!),
-            baiduOcrExtractText(competitorBase64!),
-          ]);
+          // Step 1.1: 先执行百度 OCR 获取准确文字
+          console.log(`[Task ${taskId}] Step 1.1: Running OCR first...`);
+          const ocrTexts = await baiduOcrExtractText(competitorBase64!);
+          console.log(`[Task ${taskId}] OCR completed, found ${ocrTexts.length} texts:`, ocrTexts);
+
+          // Step 1.2: 将 OCR 结果传给大模型，辅助文案卖点分析
+          console.log(`[Task ${taskId}] Step 1.2: Running competitor analysis with OCR results...`);
+          const competitorResult = await openrouterService.analyzeCompetitor(competitorBase64!, ocrTexts);
 
           // 合并结果：大模型分析 + OCR 文字
           competitorAnalysis = {
@@ -293,12 +298,17 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       console.log(`[Task ${taskId}] - competitorInfo:`, JSON.stringify(competitorInfo, null, 2));
       console.log(`[Task ${taskId}] - productInfo:`, JSON.stringify(productInfo, null, 2));
 
+      // 提取竞品图的 copywriting 信息（卖点分析）
+      const copywriting = competitorAnalysis?.copywriting || null;
+      console.log(`[Task ${taskId}] - copywriting:`, JSON.stringify(copywriting, null, 2));
+
       generatedPrompt = openrouterService.synthesizePrompt(
         competitorAnalysis!.layout,
         competitorAnalysis!.style,
         contentAnalysis!,
         competitorInfo,
-        productInfo
+        productInfo,
+        copywriting
       );
 
       console.log(`[Task ${taskId}] Generated prompt:\n${generatedPrompt}`);
@@ -343,7 +353,7 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       // 当前时间戳（用于分组显示）
       const createdAt = new Date().toISOString();
 
-      // 并行调用所有选中的模型
+      // 并行调用所有选中的模型（每个模型使用最优分辨率的输入图片）
       const generationPromises = selectedModels.map(async (modelId): Promise<ResultImage> => {
         const [provider] = modelId.split(':') as ['openrouter' | 'jimen'];
         const modelConfig = AVAILABLE_IMAGE_MODELS.find(m => m.id === modelId);
@@ -353,9 +363,12 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
         const modelStart = Date.now();
 
         try {
+          // 为当前模型获取最优分辨率的图片
+          const modelOptimizedBase64 = await getImageBase64ForModel(task.productImagePath!, modelId);
+
           const result = await imageGeneratorService.generateImageWithModel(
             modelId,
-            productBase64!,
+            modelOptimizedBase64,
             generatedPrompt!,
             task.productImagePath!
           );

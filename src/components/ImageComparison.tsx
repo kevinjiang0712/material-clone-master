@@ -116,12 +116,6 @@ export default function ImageComparison({
     }
   };
 
-  // 基础图片（竞品图和实拍图）
-  const baseImages = [
-    { src: competitorImage, label: '竞品图（参考）', highlight: false },
-    { src: productImage, label: '实拍图（原始）', highlight: false },
-  ];
-
   // 计算网格列数：2张原图 + 生成结果数量
   const totalImages = hasMultipleResults ? 2 + successfulResults.length : 3;
   const gridCols = totalImages <= 3 ? 'md:grid-cols-3' : totalImages === 4 ? 'md:grid-cols-4' : 'md:grid-cols-5';

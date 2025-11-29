@@ -646,39 +646,11 @@ export default function ResultPage() {
     return call?.totalCost ?? null;
   };
 
-  // 获取指定步骤的模型名称
-  const getStepModel = (step: number): string | null => {
-    if (!result?.apiCalls) return null;
-    const call = result.apiCalls.find((c: ApiCallInfo) => c.step === step);
-    return call?.model ?? null;
-  };
-
-  // 判断指定步骤是否为人民币计费
-  const isStepRMB = (step: number): boolean => {
-    const model = getStepModel(step);
-    if (!model) return false;
-    return model.includes('jimen') || model.includes('doubao');
-  };
-
   // 获取指定步骤的耗时
   const getStepDuration = (step: number): number | null => {
     if (!result?.stepTimings) return null;
     const timing = result.stepTimings.find((t: StepTimingInfo) => t.step === step);
     return timing?.duration ?? null;
-  };
-
-  // 格式化耗时显示
-  const formatDuration = (ms: number): string => {
-    if (ms < 1000) {
-      return `${ms}ms`;
-    }
-    const seconds = ms / 1000;
-    if (seconds < 60) {
-      return `${seconds.toFixed(1)}s`;
-    }
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m${remainingSeconds.toFixed(0)}s`;
   };
 
   return (

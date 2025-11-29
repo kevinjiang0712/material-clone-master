@@ -68,16 +68,15 @@ export async function generateImage(
     // 构建请求体 - 图生图模式
     const requestBody = {
       model: JIMEN_MODEL,
-      prompt: `TASK: Transform this product into a professional e-commerce photo.
+      prompt: `TASK: Create a stunning e-commerce product photo inspired by competitor's style.
 
-CRITICAL RULES:
-1. The product in output must be IDENTICAL to input - same shape, color, material
-2. Only change: background, lighting, composition, atmosphere
-3. Do NOT redesign or reimagine the product
+KEY PRINCIPLE:
+- Product's PHYSICAL properties (shape, color, material) must stay IDENTICAL
+- Everything else (background, scene, props, lighting, atmosphere) can be creatively enhanced
 
 ${prompt}
 
-Output: Professional product photo with the EXACT SAME product, styled professionally.`,
+Generate a high-quality product photo that looks professional and appealing for online sales.`,
       size: `${width}x${height}`,
       image: [`data:image/jpeg;base64,${sourceImageBase64}`],
       watermark: false,  // 关闭水印

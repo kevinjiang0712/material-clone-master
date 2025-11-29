@@ -100,10 +100,29 @@ const LAYOUT_ANALYSIS_PROMPT = `你现在负责分析"竞品商品图"的版式�
   "layer_sequence": [...]
 }`;
 
-// 合并版式+风格分析的 Prompt
-const COMPETITOR_ANALYSIS_PROMPT = `你现在负责分析"竞品商品图"的版式模板和视觉风格。
+// 构建带 OCR 结果的竞品分析 Prompt
+function buildCompetitorAnalysisPrompt(ocrTexts?: string[]): string {
+  // OCR 辅助信息部分
+  let ocrSection = '';
+  if (ocrTexts && ocrTexts.length > 0) {
+    const ocrList = ocrTexts.map((text, idx) => `${idx + 1}. "${text}"`).join('\n');
+    ocrSection = `## 辅助信息：OCR 识别的文字（已通过专业 OCR 引擎提取）
+以下是从图片中识别出的所有文字，这些文字内容是准确的，请直接使用这些文字进行文案分析：
+---
+${ocrList}
+---
 
-请从上传的竞品图中提取以下两部分结构化信息：
+`;
+  }
+
+  // 在提示词开头插入 OCR 信息
+  return ocrSection + COMPETITOR_ANALYSIS_PROMPT_BASE;
+}
+
+// 合并版式+风格分析的 Prompt（基础模板，不含 OCR）
+const COMPETITOR_ANALYSIS_PROMPT_BASE = `你现在负责分析"竞品商品图"的版式模板和视觉风格。
+
+请从上传的竞品图中提取以下结构化信息：
 
 ## 第一部分：版式模板（layout）
 
@@ -166,13 +185,16 @@ const COMPETITOR_ANALYSIS_PROMPT = `你现在负责分析"竞品商品图"的版
 
 ## 第三部分：文案与卖点（copywriting）
 
+重要：如果上方提供了"OCR 识别的文字"，请直接使用那些文字内容进行分析，不要自己重新识别。
+
 1. text_content（文案内容）
-逐条提取图片中出现的所有文字，每条包含：
-  - text: 文字内容（原文，保持原样）
+基于 OCR 提供的文字（或图片中可见的文字），逐条分析每段文案：
+  - text: 文字内容（直接使用 OCR 结果，保持原样）
   - type: 文字类型（主标题 / 副标题 / 卖点文案 / 标签 / 价格 / 促销信息）
   - emphasis: 强调程度（高 / 中 / 低）
 
 2. selling_points（卖点分析）
+基于文案内容，深入分析商品的卖点策略：
   - main_selling_point: 核心卖点（一句话总结这张图想传达的主要卖点信息）
   - points: 卖点列表数组，每个包含：
     - point: 卖点描述
@@ -426,10 +448,15 @@ export async function analyzeContent(imageBase64: string): Promise<AnalysisRespo
   }, 'analyzeContent');
 }
 
-// 合并分析竞品图（版式+风格）
-export async function analyzeCompetitor(imageBase64: string): Promise<AnalysisResponse<CompetitorAnalysis>> {
+// 合并分析竞品图（版式+风格），支持 OCR 文字辅助
+export async function analyzeCompetitor(imageBase64: string, ocrTexts?: string[]): Promise<AnalysisResponse<CompetitorAnalysis>> {
   console.log('[OpenRouter] Calling analyzeCompetitor with model:', VISION_MODEL);
   console.log('[OpenRouter] Image base64 length:', imageBase64.length);
+  console.log('[OpenRouter] OCR texts count:', ocrTexts?.length || 0);
+
+  // 构建带 OCR 结果的提示词
+  const prompt = buildCompetitorAnalysisPrompt(ocrTexts);
+  console.log('[OpenRouter] Prompt length:', prompt.length);
 
   return withRetry(async () => {
     const response = await openrouter.chat.completions.create({
@@ -438,7 +465,7 @@ export async function analyzeCompetitor(imageBase64: string): Promise<AnalysisRe
         {
           role: 'user',
           content: [
-            { type: 'text', text: COMPETITOR_ANALYSIS_PROMPT },
+            { type: 'text', text: prompt },
             {
               type: 'image_url',
               image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
@@ -461,12 +488,23 @@ export async function analyzeCompetitor(imageBase64: string): Promise<AnalysisRe
   }, 'analyzeCompetitor');
 }
 
+// 从 CompetitorAnalysis 中提取 copywriting 信息的接口
+interface CopywritingInfo {
+  selling_points?: {
+    main_selling_point?: string;
+    points?: Array<{ point: string; category: string }>;
+    target_audience?: string;
+    emotional_appeal?: string;
+  };
+}
+
 export function synthesizePrompt(
   layout: LayoutAnalysis,
   style: StyleAnalysis,
   content: ContentAnalysis,
   competitorInfo?: CompetitorInfo | null,
-  productInfo?: ProductInfo | null
+  productInfo?: ProductInfo | null,
+  copywriting?: CopywritingInfo | null
 ): string {
   console.log('[OpenRouter] synthesizePrompt called');
   console.log('[OpenRouter] layout keys:', Object.keys(layout || {}));
@@ -474,6 +512,7 @@ export function synthesizePrompt(
   console.log('[OpenRouter] content keys:', Object.keys(content || {}));
   console.log('[OpenRouter] competitorInfo:', competitorInfo);
   console.log('[OpenRouter] productInfo:', productInfo);
+  console.log('[OpenRouter] copywriting:', copywriting);
 
   // 防御性检查
   if (!layout?.main_object) {
@@ -487,31 +526,52 @@ export function synthesizePrompt(
     console.error('[OpenRouter] content object:', JSON.stringify(content, null, 2));
   }
 
-  // 1. 构建产品约束部分（核心 - 放在最前面）
-  const productConstraints = `=== CRITICAL: PRODUCT PRESERVATION (MUST FOLLOW) ===
-You MUST keep the product EXACTLY as shown in the reference image:
+  // 1. 产品物理属性约束（必须保持不变）
+  const productPhysicalConstraints = `=== PRODUCT PHYSICAL PROPERTIES (MUST PRESERVE) ===
+The product's physical appearance must remain IDENTICAL:
 - Shape: ${content?.product_shape?.category || 'original shape'} (${content?.product_shape?.proportions || 'original proportions'})
 - Color: ${content?.color_profile?.primary_color || 'original color'}${content?.color_profile?.secondary_color ? ` with ${content.color_profile.secondary_color}` : ''}
 - Material: ${content?.product_surface?.material || 'original material'} (${content?.product_surface?.glossiness || 'original finish'})
-- Orientation: ${content?.product_orientation?.facing || 'front'} view, ${content?.product_orientation?.view_angle || 'eye level'}
+- Texture: ${content?.product_texture?.smoothness || 'original texture'}`;
 
-DO NOT modify the product itself in any way.`;
+  // 2. 竞品风格学习（自由发挥区域）
+  const styleToLearn = `=== STYLE TO LEARN FROM COMPETITOR ===
+Apply the competitor's visual excellence:
+- Color atmosphere: ${style?.color_style?.primary_color || 'warm'} theme with ${style?.color_style?.saturation || 'moderate'} saturation
+- Lighting style: ${style?.lighting?.type || 'soft'} ${style?.lighting?.direction || 'natural'} lighting
+- Background approach: ${layout?.background_structure?.type || 'lifestyle'} style
+- Visual mood: ${style?.vibe || 'professional and appealing'}
+- Texture feel: ${style?.texture?.surface || 'premium'}`;
 
-  // 2. 构建风格参考部分
-  const styleReference = `=== STYLE TO APPLY ===
-Apply these visual elements to the background and lighting only:
-- Primary color theme: ${style?.color_style?.primary_color || 'neutral'}
-- Lighting: ${style?.lighting?.type || 'soft'} light from ${style?.lighting?.direction || 'front'}
-- Background: ${layout?.background_structure?.type || 'clean studio'} style
-- Surface texture feel: ${style?.texture?.surface || 'smooth'}
-- Overall mood: ${style?.vibe || 'professional'}`;
+  // 3. 构图参考
+  const compositionGuide = `=== COMPOSITION REFERENCE ===
+- Product position: ${layout?.main_object?.position || 'center'}
+- Camera angle: ${layout?.main_object?.view_angle || 'eye level'}
+- Product size in frame: ${layout?.main_object?.size || 'prominent'}`;
 
-  // 3. 构建布局参考
-  const compositionGuide = `=== COMPOSITION ===
-- Position product: ${layout?.main_object?.position || 'center'}
-- View angle: ${layout?.main_object?.view_angle || 'front view'}`;
+  // 4. 卖点驱动的创意指导
+  let sellingPointGuidance = '';
+  const mainSellingPoint = copywriting?.selling_points?.main_selling_point || productInfo?.sellingPoints;
+  const targetAudience = copywriting?.selling_points?.target_audience;
+  const emotionalAppeal = copywriting?.selling_points?.emotional_appeal;
 
-  // 4. 用户提供的商品信息（可选）
+  if (mainSellingPoint || targetAudience || emotionalAppeal) {
+    const guidanceParts: string[] = [];
+    if (mainSellingPoint) {
+      guidanceParts.push(`- Core message to convey: ${mainSellingPoint}`);
+    }
+    if (targetAudience) {
+      guidanceParts.push(`- Target audience: ${targetAudience}`);
+    }
+    if (emotionalAppeal) {
+      guidanceParts.push(`- Emotional connection: ${emotionalAppeal}`);
+    }
+    sellingPointGuidance = `\n=== SELLING POINT GUIDANCE ===
+Design the scene to reinforce the product's value:
+${guidanceParts.join('\n')}`;
+  }
+
+  // 5. 用户商品信息
   let productContext = '';
   if (productInfo?.productName) {
     const contextParts: string[] = [];
@@ -522,25 +582,65 @@ Apply these visual elements to the background and lighting only:
     if (productInfo.brandTone?.length) {
       contextParts.push(`- Brand tone: ${productInfo.brandTone.join(', ')}`);
     }
-    productContext = `\n=== PRODUCT CONTEXT ===\n${contextParts.join('\n')}`;
+    productContext = `\n=== PRODUCT CONTEXT ===
+${contextParts.join('\n')}`;
   }
 
-  // 5. 禁止项
-  const prohibitions = `=== STRICT PROHIBITIONS ===
-- DO NOT change product shape, size, or proportions
-- DO NOT alter product colors or materials
-- DO NOT add new elements to the product
-- NO text, NO watermarks, NO logos`;
+  // 6. 创意自由区域（AI可发挥）
+  const creativeLiberty = `=== CREATIVE FREEDOM (AI CAN DECIDE) ===
+You have creative freedom in these areas to make the image more appealing:
 
-  return `${productConstraints}
+1. BACKGROUND & SCENE:
+   - Design an attractive background that matches the competitor's style
+   - Can add lifestyle elements, props, or contextual scenes
+   - For pet products: consider adding cute pets (cats/dogs) if it enhances the selling point
 
-${styleReference}
+2. PRODUCT QUANTITY:
+   - You may show multiple instances of the same product if competitor does so
+   - Consider product stacking, grouping, or arrangement patterns
+
+3. DECORATIVE ELEMENTS:
+   - Add complementary props that enhance the product story
+   - For pet products: paw prints, pet toys, treats, cozy fabrics, greenery
+   - Match the competitor's decoration style and density
+
+4. COLOR ATMOSPHERE:
+   - Apply the competitor's color grading and mood
+   - Adjust ambient colors (not product colors) to match the vibe
+
+5. LIGHTING EFFECTS:
+   - Replicate the competitor's professional lighting setup
+   - Add highlights, reflections, or glow effects as appropriate`;
+
+  // 7. 严格限制
+  const strictRules = `=== STRICT RULES ===
+DO NOT:
+- Change the product's shape, proportions, or physical structure
+- Alter the product's actual colors or material appearance
+- Add text, watermarks, logos, or price tags
+- Distort or deform the product
+- Make the product unrecognizable
+
+MUST:
+- Keep product physically identical to the input image
+- Create a professional e-commerce quality photo
+- Make the image visually appealing and conversion-optimized`;
+
+  return `${productPhysicalConstraints}
+
+${styleToLearn}
 
 ${compositionGuide}
+${sellingPointGuidance}
 ${productContext}
 
-${prohibitions}
+${creativeLiberty}
 
-Create a professional e-commerce product photo showing the SAME product
-with enhanced styling. The product must be identical to the input image.`;
+${strictRules}
+
+TASK: Create a professional e-commerce product photo that:
+1. Preserves the exact physical appearance of the product
+2. Applies the competitor's visual style and atmosphere
+3. Uses creative scene design to highlight the product's selling points
+4. Looks premium, appealing, and ready for online sales`;
 }
