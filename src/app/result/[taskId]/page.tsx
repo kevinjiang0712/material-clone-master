@@ -11,6 +11,7 @@ import StepAnalysisCard from '@/components/StepAnalysisCard';
 import Button from '@/components/ui/Button';
 import { TaskStatusResponse, TaskResultResponse, ApiCallInfo, ResultImage, StepTimingInfo } from '@/types';
 import { POLLING_INTERVAL, AVAILABLE_IMAGE_MODELS, MAX_IMAGES_PER_TASK } from '@/lib/constants';
+import { getTemplateById } from '@/lib/petStyleTemplates';
 
 // 模型标签组件（本地处理类型）
 function LocalModelTag({ modelName }: { modelName: string }) {
@@ -628,10 +629,13 @@ export default function ResultPage() {
     }
   };
 
-  // 获取步骤名称
+  // 获取步骤名称（根据生成模式动态返回）
   const getStepName = (step: number): string => {
+    const isTemplateMode = result?.generationMode === 'template';
+    const templateName = result?.styleTemplateId ? getTemplateById(result.styleTemplateId)?.name : '风格模板';
+
     const names: Record<number, string> = {
-      1: '分析竞品图（版式+风格）',
+      1: isTemplateMode ? `使用风格模板：${templateName}` : '分析竞品图（版式+风格）',
       2: '分析实拍图内容',
       3: '合成生成提示词',
       4: '生成结果图片',
@@ -739,16 +743,22 @@ export default function ResultPage() {
                 </h2>
 
                 <div className="space-y-4">
-                  {/* 步骤1: 竞品图分析（版式+风格） */}
+                  {/* 步骤1: 竞品图分析 或 使用模板 */}
                   <StepAnalysisCard
                     stepNumber={1}
-                    title="分析竞品图（版式+风格）"
-                    description="提取版式布局、色彩风格、光影效果等信息"
+                    title={result.generationMode === 'template'
+                      ? `使用风格模板：${getTemplateById(result.styleTemplateId || '')?.name || '风格模板'}`
+                      : '分析竞品图（版式+风格）'
+                    }
+                    description={result.generationMode === 'template'
+                      ? '使用预设的版式布局、色彩风格、光影效果配置'
+                      : '提取版式布局、色彩风格、光影效果等信息'
+                    }
                     data={result.competitorAnalysis}
                     type="competitor"
-                    modelName={result.usedModels?.step1_competitor}
-                    cost={getStepCost(1)}
-                    duration={getStepDuration(1)}
+                    modelName={result.generationMode === 'template' ? undefined : result.usedModels?.step1_competitor}
+                    cost={result.generationMode === 'template' ? null : getStepCost(1)}
+                    duration={result.generationMode === 'template' ? null : getStepDuration(1)}
                   />
 
                   {/* 步骤2: 内容分析 */}
@@ -868,14 +878,20 @@ export default function ResultPage() {
                 </h2>
 
                 <div className="space-y-4">
-                  {/* 步骤1: 竞品图分析 */}
+                  {/* 步骤1: 竞品图分析 或 使用模板 */}
                   <StepAnalysisCard
                     stepNumber={1}
-                    title="分析竞品图（版式+风格）"
-                    description="提取版式布局、色彩风格、光影效果等信息"
+                    title={status.generationMode === 'template'
+                      ? `使用风格模板：${getTemplateById(status.styleTemplateId || '')?.name || '风格模板'}`
+                      : '分析竞品图（版式+风格）'
+                    }
+                    description={status.generationMode === 'template'
+                      ? '使用预设的版式布局、色彩风格、光影效果配置'
+                      : '提取版式布局、色彩风格、光影效果等信息'
+                    }
                     data={status.competitorAnalysis || null}
                     type="competitor"
-                    modelName={status.usedModels?.step1_competitor}
+                    modelName={status.generationMode === 'template' ? undefined : status.usedModels?.step1_competitor}
                     stepStatus={
                       status.currentStep > 1
                         ? 'completed'
@@ -995,6 +1011,8 @@ export default function ResultPage() {
               resultImages={result.resultImages}
               onDownload={handleDownload}
               onImageClick={handleImageClick}
+              generationMode={result.generationMode}
+              templateName={result.styleTemplateId ? getTemplateById(result.styleTemplateId)?.name : undefined}
             />
 
             {/* 历史生成记录 */}
@@ -1046,16 +1064,22 @@ export default function ResultPage() {
               </h2>
 
               <div className="space-y-4">
-                {/* 步骤1: 竞品图分析（版式+风格） */}
+                {/* 步骤1: 竞品图分析 或 使用模板 */}
                 <StepAnalysisCard
                   stepNumber={1}
-                  title="分析竞品图（版式+风格）"
-                  description="提取版式布局、色彩风格、光影效果等信息"
+                  title={result.generationMode === 'template'
+                    ? `使用风格模板：${getTemplateById(result.styleTemplateId || '')?.name || '风格模板'}`
+                    : '分析竞品图（版式+风格）'
+                  }
+                  description={result.generationMode === 'template'
+                    ? '使用预设的版式布局、色彩风格、光影效果配置'
+                    : '提取版式布局、色彩风格、光影效果等信息'
+                  }
                   data={result.competitorAnalysis}
                   type="competitor"
-                  modelName={result.usedModels?.step1_competitor}
-                  cost={getStepCost(1)}
-                  duration={getStepDuration(1)}
+                  modelName={result.generationMode === 'template' ? undefined : result.usedModels?.step1_competitor}
+                  cost={result.generationMode === 'template' ? null : getStepCost(1)}
+                  duration={result.generationMode === 'template' ? null : getStepDuration(1)}
                 />
 
                 {/* 步骤2: 内容分析 */}

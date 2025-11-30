@@ -1,13 +1,20 @@
 'use client';
 
-import { AVAILABLE_IMAGE_MODELS, MAX_SELECTED_MODELS, DEFAULT_IMAGE_MODELS } from '@/lib/constants';
+import { AVAILABLE_IMAGE_MODELS, MAX_SELECTED_MODELS, DEFAULT_IMAGE_MODELS, JIMEN_RESOLUTION_OPTIONS, DEFAULT_JIMEN_RESOLUTION } from '@/lib/constants';
 
 interface ModelSelectorProps {
   selectedModels: string[];
   onChange: (models: string[]) => void;
+  jimenResolution?: string;
+  onResolutionChange?: (resolution: string) => void;
 }
 
-export default function ModelSelector({ selectedModels, onChange }: ModelSelectorProps) {
+export default function ModelSelector({
+  selectedModels,
+  onChange,
+  jimenResolution = DEFAULT_JIMEN_RESOLUTION,
+  onResolutionChange,
+}: ModelSelectorProps) {
   const handleToggle = (modelId: string) => {
     if (selectedModels.includes(modelId)) {
       // 至少保留一个模型
@@ -25,6 +32,9 @@ export default function ModelSelector({ selectedModels, onChange }: ModelSelecto
   // 按 provider 分组
   const jimenModels = AVAILABLE_IMAGE_MODELS.filter(m => m.provider === 'jimen');
   const openrouterModels = AVAILABLE_IMAGE_MODELS.filter(m => m.provider === 'openrouter');
+
+  // 检查是否选中了即梦模型
+  const hasJimenSelected = selectedModels.some(id => id.startsWith('jimen:'));
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -60,6 +70,33 @@ export default function ModelSelector({ selectedModels, onChange }: ModelSelecto
             />
           ))}
         </div>
+
+        {/* 即梦分辨率选择器 - 仅当选中即梦模型时显示 */}
+        {hasJimenSelected && onResolutionChange && (
+          <div className="mt-3 ml-4 p-3 bg-orange-50 rounded-lg border border-orange-100">
+            <div className="text-xs font-medium text-gray-600 mb-2">输出分辨率</div>
+            <div className="flex gap-2 flex-wrap">
+              {JIMEN_RESOLUTION_OPTIONS.map(option => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => onResolutionChange(option.id)}
+                  className={`px-3 py-1.5 text-xs rounded-md border transition-all
+                    ${jimenResolution === option.id
+                      ? 'border-orange-400 bg-orange-100 text-orange-700 font-medium'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50'
+                    }`}
+                >
+                  <span className="font-medium">{option.name}</span>
+                  <span className="text-gray-400 ml-1">({option.size}×{option.size})</span>
+                  {option.id === '2k' && (
+                    <span className="ml-1 text-orange-500">推荐</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* OpenRouter 模型 */}

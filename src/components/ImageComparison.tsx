@@ -6,13 +6,16 @@ import { ResultImage } from '@/types';
 import { AVAILABLE_IMAGE_MODELS } from '@/lib/constants';
 
 interface ImageComparisonProps {
-  competitorImage: string;
+  competitorImage?: string | null;  // 竞品图（模板模式下为空）
   productImage: string;
   resultImage: string;
   resultImages?: ResultImage[];  // 多图结果
   taskId?: string;
   onDownload?: (imagePath?: string) => void;
   onImageClick?: (src: string, alt: string) => void;  // 外部控制模态框
+  // 模板模式相关
+  generationMode?: 'competitor' | 'template';
+  templateName?: string;
 }
 
 interface ImageModalProps {
@@ -96,6 +99,8 @@ export default function ImageComparison({
   resultImages,
   onDownload,
   onImageClick,
+  generationMode = 'competitor',
+  templateName,
 }: ImageComparisonProps) {
   const [modalImage, setModalImage] = useState<{
     src: string;
@@ -116,32 +121,53 @@ export default function ImageComparison({
     }
   };
 
-  // 计算网格列数：2张原图 + 生成结果数量
-  const totalImages = hasMultipleResults ? 2 + successfulResults.length : 3;
-  const gridCols = totalImages <= 3 ? 'md:grid-cols-3' : totalImages === 4 ? 'md:grid-cols-4' : 'md:grid-cols-5';
+  // 是否为模板模式
+  const isTemplateMode = generationMode === 'template';
+
+  // 计算网格列数：风格模板/竞品图 + 实拍图，两种模式一致
+  const baseImages = 2;
+  const totalImages = hasMultipleResults ? baseImages + successfulResults.length : baseImages + 1;
+  const gridCols = totalImages <= 2 ? 'md:grid-cols-2' : totalImages === 3 ? 'md:grid-cols-3' : totalImages === 4 ? 'md:grid-cols-4' : 'md:grid-cols-5';
 
   return (
     <>
       {/* 所有图片放在一行 */}
       <div className={`grid gap-4 ${gridCols}`}>
-        {/* 竞品图 */}
-        <div
-          className="bg-white rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform hover:scale-[1.02]"
-          onClick={() => handleImageClick(competitorImage, '竞品图（参考）')}
-        >
-          <div className="px-4 py-3 font-medium bg-gray-100 text-gray-700 text-sm">
-            竞品图（参考）
+        {/* 竞品图 或 模板标识 */}
+        {isTemplateMode ? (
+          // 模板模式：显示模板标识卡片
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-4 py-3 font-medium bg-purple-100 text-purple-700 text-sm">
+              风格模板
+            </div>
+            <div className="relative aspect-square bg-gradient-to-br from-purple-50 to-pink-50 flex flex-col items-center justify-center">
+              <svg className="w-16 h-16 text-purple-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+              <p className="text-lg font-medium text-purple-700">{templateName || '风格模板'}</p>
+              <p className="text-sm text-purple-500 mt-1">预设风格</p>
+            </div>
           </div>
-          <div className="relative aspect-square">
-            <Image
-              src={competitorImage}
-              alt="竞品图（参考）"
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 33vw"
-            />
+        ) : competitorImage ? (
+          // 竞品模式：显示竞品图
+          <div
+            className="bg-white rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform hover:scale-[1.02]"
+            onClick={() => handleImageClick(competitorImage, '竞品图（参考）')}
+          >
+            <div className="px-4 py-3 font-medium bg-gray-100 text-gray-700 text-sm">
+              竞品图（参考）
+            </div>
+            <div className="relative aspect-square">
+              <Image
+                src={competitorImage}
+                alt="竞品图（参考）"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 33vw"
+              />
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* 实拍图 */}
         <div
@@ -198,11 +224,12 @@ export default function ImageComparison({
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 100vw, 33vw"
+                  priority={index === 0}
                 />
               </div>
             </div>
           ))
-        ) : (
+        ) : resultImage ? (
           // 单图结果
           <div
             className="bg-white rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform hover:scale-[1.02] ring-2 ring-blue-500 ring-offset-2"
@@ -232,10 +259,11 @@ export default function ImageComparison({
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, 33vw"
+                priority
               />
             </div>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* 显示最新批次失败的模型 */}

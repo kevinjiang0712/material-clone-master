@@ -11,6 +11,7 @@ import {
 } from './imageProcessor';
 import { TaskStatus, CompetitorAnalysis, ContentAnalysis, UsedModels, CompetitorInfo, ProductInfo, ResultImage } from '@/types';
 import { DEFAULT_IMAGE_MODELS, AVAILABLE_IMAGE_MODELS } from '@/lib/constants';
+import { getTemplateById } from '@/lib/petStyleTemplates';
 
 /**
  * 更新任务状态
@@ -115,8 +116,16 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       throw new Error('Task not found');
     }
 
-    if (!task.competitorImagePath || !task.productImagePath) {
-      throw new Error('Missing image paths');
+    // 判断生成模式
+    const generationMode = task.generationMode || 'competitor';
+    const isTemplateMode = generationMode === 'template';
+
+    // 竞品模式需要竞品图，模板模式不需要
+    if (!isTemplateMode && !task.competitorImagePath) {
+      throw new Error('Missing competitor image path');
+    }
+    if (!task.productImagePath) {
+      throw new Error('Missing product image path');
     }
 
     // 如果是重试，清除之前的失败状态
@@ -158,11 +167,14 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
     // 步骤 1 + 2: 并行执行竞品图分析和产品图分析（优化：减少 3-8 秒）
     if (startFromStep <= 2) {
       const parallelStart = Date.now();
-      console.log(`[Task ${taskId}] Step 1+2: Starting parallel analysis...`);
+      console.log(`[Task ${taskId}] Step 1+2: Starting parallel analysis (mode: ${generationMode})...`);
 
       // 预加载所有图片（并行）
+      // 模板模式下不需要加载竞品图
       const [competitorBase64Loaded, productBase64Loaded] = await Promise.all([
-        startFromStep <= 1 ? getImageBase64(task.competitorImagePath) : Promise.resolve(null),
+        startFromStep <= 1 && !isTemplateMode && task.competitorImagePath
+          ? getImageBase64(task.competitorImagePath)
+          : Promise.resolve(null),
         startFromStep <= 2 ? getImageBase64(task.productImagePath) : Promise.resolve(null),
       ]);
       competitorBase64 = competitorBase64Loaded;
@@ -173,48 +185,77 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       // 并行执行 Step 1 和 Step 2
       const analysisPromises: Promise<void>[] = [];
 
-      // Step 1: 分析竞品图（版式+风格）+ 百度 OCR
-      // 改进：先执行 OCR，再将 OCR 结果传给大模型辅助文案分析
+      // Step 1: 获取风格分析数据
+      // - 竞品模式：分析竞品图（版式+风格）+ 百度 OCR
+      // - 模板模式：直接使用预设模板数据
       if (startFromStep <= 1) {
         analysisPromises.push((async () => {
           currentExecutingStep = 1;
           const step1Start = Date.now();
-          console.log(`[Task ${taskId}] Step 1: Analyzing competitor image (layout + style) + OCR...`);
-          await updateTaskStatus(taskId, 'analyzing_competitor', 1);
 
-          // Step 1.1: 先执行百度 OCR 获取准确文字
-          console.log(`[Task ${taskId}] Step 1.1: Running OCR first...`);
-          const ocrTexts = await baiduOcrExtractText(competitorBase64!);
-          console.log(`[Task ${taskId}] OCR completed, found ${ocrTexts.length} texts:`, ocrTexts);
+          if (isTemplateMode) {
+            // ========== 模板模式：使用预设数据 ==========
+            console.log(`[Task ${taskId}] Step 1: Using template (${task.styleTemplateId})...`);
+            await updateTaskStatus(taskId, 'analyzing_competitor', 1);
 
-          // Step 1.2: 将 OCR 结果传给大模型，辅助文案卖点分析
-          console.log(`[Task ${taskId}] Step 1.2: Running competitor analysis with OCR results...`);
-          const competitorResult = await openrouterService.analyzeCompetitor(competitorBase64!, ocrTexts);
+            const template = getTemplateById(task.styleTemplateId || '');
+            if (!template) {
+              throw new Error(`Template not found: ${task.styleTemplateId}`);
+            }
 
-          // 合并结果：大模型分析 + OCR 文字
-          competitorAnalysis = {
-            ...competitorResult.data,
-            ocrTexts,
-          };
+            // 直接使用模板的预设分析数据
+            competitorAnalysis = template.presetAnalysis;
 
-          await prisma.task.update({
-            where: { id: taskId },
-            data: { competitorAnalysis: JSON.stringify(competitorAnalysis) },
-          });
+            await prisma.task.update({
+              where: { id: taskId },
+              data: { competitorAnalysis: JSON.stringify(competitorAnalysis) },
+            });
 
-          // 异步记录成本（不阻塞主流程）
-          if (competitorResult.generationId) {
-            recordApiCost(taskId, 1, competitorResult.generationId).catch(err =>
-              console.error(`[Task ${taskId}] Failed to record step 1 cost:`, err)
+            // 异步记录步骤耗时（模板模式几乎瞬间完成）
+            recordStepTiming(taskId, 1, Date.now() - step1Start).catch(err =>
+              console.error(`[Task ${taskId}] Failed to record step 1 timing:`, err)
             );
+
+            console.log(`[Task ${taskId}] Step 1 completed in ${Date.now() - step1Start}ms (template: ${template.name})`);
+          } else {
+            // ========== 竞品模式：分析竞品图 ==========
+            console.log(`[Task ${taskId}] Step 1: Analyzing competitor image (layout + style) + OCR...`);
+            await updateTaskStatus(taskId, 'analyzing_competitor', 1);
+
+            // Step 1.1: 先执行百度 OCR 获取准确文字
+            console.log(`[Task ${taskId}] Step 1.1: Running OCR first...`);
+            const ocrTexts = await baiduOcrExtractText(competitorBase64!);
+            console.log(`[Task ${taskId}] OCR completed, found ${ocrTexts.length} texts:`, ocrTexts);
+
+            // Step 1.2: 将 OCR 结果传给大模型，辅助文案卖点分析
+            console.log(`[Task ${taskId}] Step 1.2: Running competitor analysis with OCR results...`);
+            const competitorResult = await openrouterService.analyzeCompetitor(competitorBase64!, ocrTexts);
+
+            // 合并结果：大模型分析 + OCR 文字
+            competitorAnalysis = {
+              ...competitorResult.data,
+              ocrTexts,
+            };
+
+            await prisma.task.update({
+              where: { id: taskId },
+              data: { competitorAnalysis: JSON.stringify(competitorAnalysis) },
+            });
+
+            // 异步记录成本（不阻塞主流程）
+            if (competitorResult.generationId) {
+              recordApiCost(taskId, 1, competitorResult.generationId).catch(err =>
+                console.error(`[Task ${taskId}] Failed to record step 1 cost:`, err)
+              );
+            }
+
+            // 异步记录步骤耗时（不阻塞主流程）
+            recordStepTiming(taskId, 1, Date.now() - step1Start).catch(err =>
+              console.error(`[Task ${taskId}] Failed to record step 1 timing:`, err)
+            );
+
+            console.log(`[Task ${taskId}] Step 1 completed in ${Date.now() - step1Start}ms, OCR found ${ocrTexts.length} texts`);
           }
-
-          // 异步记录步骤耗时（不阻塞主流程）
-          recordStepTiming(taskId, 1, Date.now() - step1Start).catch(err =>
-            console.error(`[Task ${taskId}] Failed to record step 1 timing:`, err)
-          );
-
-          console.log(`[Task ${taskId}] Step 1 completed in ${Date.now() - step1Start}ms, OCR found ${ocrTexts.length} texts`);
         })());
       }
 
@@ -302,7 +343,8 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       const copywriting = competitorAnalysis?.copywriting || null;
       console.log(`[Task ${taskId}] - copywriting:`, JSON.stringify(copywriting, null, 2));
 
-      generatedPrompt = openrouterService.synthesizePrompt(
+      // 使用 AI 动态合成提示词
+      const promptResult = await openrouterService.synthesizePromptWithAI(
         competitorAnalysis!.layout,
         competitorAnalysis!.style,
         contentAnalysis!,
@@ -310,6 +352,7 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
         productInfo,
         copywriting
       );
+      generatedPrompt = promptResult.data;
 
       console.log(`[Task ${taskId}] Generated prompt:\n${generatedPrompt}`);
 
@@ -317,6 +360,13 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
         where: { id: taskId },
         data: { generatedPrompt },
       });
+
+      // 异步记录成本（不阻塞主流程）
+      if (promptResult.generationId) {
+        recordApiCost(taskId, 3, promptResult.generationId).catch(err =>
+          console.error(`[Task ${taskId}] Failed to record step 3 cost:`, err)
+        );
+      }
 
       // 异步记录步骤耗时（不阻塞主流程）
       recordStepTiming(taskId, 3, Date.now() - step3Start).catch(err =>
@@ -370,7 +420,8 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
             modelId,
             modelOptimizedBase64,
             generatedPrompt!,
-            task.productImagePath!
+            task.productImagePath!,
+            task.jimenResolution || undefined
           );
 
           const modelDuration = Date.now() - modelStart;
@@ -440,10 +491,20 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
 
       // 记录使用的模型（取第一个成功的作为主模型）
       const primaryModel = successfulImages[0];
+
+      // 根据生成模式设置 step1 的模型信息
+      let step1Model: string;
+      if (isTemplateMode) {
+        const template = getTemplateById(task.styleTemplateId || '');
+        step1Model = `模板: ${template?.name || task.styleTemplateId}`;
+      } else {
+        step1Model = openrouterService.getVisionModel();
+      }
+
       const usedModels: UsedModels = {
-        step1_competitor: openrouterService.getVisionModel(),
+        step1_competitor: step1Model,
         step2_content: openrouterService.getVisionModel(),
-        step3_prompt: '本地处理',
+        step3_prompt: openrouterService.getVisionModel(),  // 现在使用 AI 动态合成
         step4_image: selectedModels.join(', '),
       };
 

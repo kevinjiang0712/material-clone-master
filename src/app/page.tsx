@@ -1,25 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import ImageUploader from '@/components/ImageUploader';
-import ImagePreview from '@/components/ImagePreview';
-import CompetitorInfoForm from '@/components/CompetitorInfoForm';
-import ProductInfoForm from '@/components/ProductInfoForm';
-import ModelSelector, { DEFAULT_IMAGE_MODELS } from '@/components/ModelSelector';
-import Button from '@/components/ui/Button';
+import {
+  StepIndicator,
+  Step1Upload,
+  Step2StyleSource,
+  Step3Info,
+} from '@/components/wizard';
 import TaskHistoryList from '@/components/TaskHistoryList';
 import HistoryButton from '@/components/HistoryButton';
-import { CompetitorInfo, ProductInfo } from '@/types';
+import { CompetitorInfo, ProductInfo, GenerationMode } from '@/types';
+import { DEFAULT_IMAGE_MODELS, DEFAULT_JIMEN_RESOLUTION } from '@/lib/constants';
+
+const STEPS = [
+  { number: 1, label: '上传实拍图' },
+  { number: 2, label: '选择风格' },
+  { number: 3, label: '完善信息' },
+];
 
 export default function HomePage() {
   const router = useRouter();
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // 步骤1：实拍图
+  const [productImage, setProductImage] = useState<string | null>(null);
+
+  // 步骤2：风格来源
+  const [generationMode, setGenerationMode] = useState<GenerationMode>('competitor');
   const [competitorImage, setCompetitorImage] = useState<string | null>(null);
   const [competitorInfo, setCompetitorInfo] = useState<CompetitorInfo>({
     competitorName: '',
     competitorCategory: '',
   });
-  const [productImage, setProductImage] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [selectedTemplateName, setSelectedTemplateName] = useState<string | null>(null);
+
+  // 步骤3：商品信息和模型
   const [productInfo, setProductInfo] = useState<ProductInfo>({
     productName: '',
     productCategory: '',
@@ -28,13 +45,39 @@ export default function HomePage() {
     brandTone: [],
   });
   const [selectedModels, setSelectedModels] = useState<string[]>(DEFAULT_IMAGE_MODELS);
-  const [isLoading, setIsLoading] = useState(false);
+  const [jimenResolution, setJimenResolution] = useState<string>(DEFAULT_JIMEN_RESOLUTION);
+
+  // 提交状态
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleStartGenerate = async () => {
-    if (!competitorImage || !productImage) return;
+  // 获取选中模板的名称
+  useEffect(() => {
+    if (selectedTemplateId) {
+      fetch('/api/templates')
+        .then(res => res.json())
+        .then(data => {
+          const template = data.templates.find((t: { id: string; name: string }) => t.id === selectedTemplateId);
+          if (template) {
+            setSelectedTemplateName(template.name);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setSelectedTemplateName(null);
+    }
+  }, [selectedTemplateId]);
 
-    setIsLoading(true);
+  // 步骤导航
+  const goToStep = (step: number) => {
+    if (step >= 1 && step <= 3) {
+      setCurrentStep(step);
+    }
+  };
+
+  // 提交生成任务
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
     setError(null);
 
     try {
@@ -42,11 +85,14 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          competitorImagePath: competitorImage,
           productImagePath: productImage,
-          competitorInfo,
+          generationMode,
+          competitorImagePath: generationMode === 'competitor' ? competitorImage : undefined,
+          competitorInfo: generationMode === 'competitor' ? competitorInfo : undefined,
+          styleTemplateId: generationMode === 'template' ? selectedTemplateId : undefined,
           productInfo,
           selectedImageModels: selectedModels,
+          jimenResolution,
         }),
       });
 
@@ -59,98 +105,32 @@ export default function HomePage() {
       router.push(`/result/${data.taskId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建任务失败，请重试');
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
-
-  const canSubmit = competitorImage && productImage && !isLoading;
 
   return (
     <>
       <HistoryButton />
 
       <main className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 py-12 px-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           {/* 标题 */}
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-800 mb-3">
               素材克隆大师
             </h1>
             <p className="text-gray-600 text-lg">
-              上传竞品图和实拍图，AI 帮你生成同款风格的产品图
+              AI 帮你生成专业的宠物商品图
             </p>
           </div>
 
-          {/* 上传区域 */}
-          <div className="grid md:grid-cols-2 gap-8 mb-6">
-            {/* 竞品图 + 竞品信息 */}
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                  1
-                </span>
-                <h2 className="text-lg font-semibold text-gray-800">
-                  竞品图（参考风格）
-                </h2>
-              </div>
-              <p className="text-sm text-gray-500 mb-4">
-                上传竞品图并填写基本信息
-              </p>
-
-              {/* 图片上传区域 */}
-              <div className="mb-4">
-                {competitorImage ? (
-                  <ImagePreview
-                    src={competitorImage}
-                    onRemove={() => setCompetitorImage(null)}
-                  />
-                ) : (
-                  <ImageUploader type="competitor" onUpload={setCompetitorImage} />
-                )}
-              </div>
-
-              {/* 竞品信息表单 */}
-              <CompetitorInfoForm value={competitorInfo} onChange={setCompetitorInfo} />
-            </div>
-
-            {/* 实拍图 + 商品信息 */}
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold text-sm">
-                  2
-                </span>
-                <h2 className="text-lg font-semibold text-gray-800">
-                  你的产品
-                </h2>
-              </div>
-              <p className="text-sm text-gray-500 mb-4">
-                上传商品照片并填写基本信息
-              </p>
-
-              {/* 图片上传区域 */}
-              <div className="mb-4">
-                {productImage ? (
-                  <ImagePreview
-                    src={productImage}
-                    onRemove={() => setProductImage(null)}
-                  />
-                ) : (
-                  <ImageUploader type="product" onUpload={setProductImage} />
-                )}
-              </div>
-
-              {/* 商品信息表单 */}
-              <ProductInfoForm value={productInfo} onChange={setProductInfo} />
-            </div>
-          </div>
-
-          {/* 模型选择 */}
-          <div className="mb-8">
-            <ModelSelector
-              selectedModels={selectedModels}
-              onChange={setSelectedModels}
-            />
-          </div>
+          {/* 步骤指示器 */}
+          <StepIndicator
+            steps={STEPS}
+            currentStep={currentStep}
+            onStepClick={goToStep}
+          />
 
           {/* 错误提示 */}
           {error && (
@@ -159,50 +139,56 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* 提交按钮 */}
-          <div className="text-center">
-            <Button
-              onClick={handleStartGenerate}
-              disabled={!canSubmit}
-              loading={isLoading}
-              size="lg"
-            >
-              开始生成
-            </Button>
-            {!canSubmit && !isLoading && (
-              <p className="text-gray-500 text-sm mt-3">
-                请先上传竞品图和实拍图
-              </p>
-            )}
-          </div>
+          {/* 步骤内容 */}
+          {currentStep === 1 && (
+            <Step1Upload
+              productImagePath={productImage}
+              onProductImageUpload={setProductImage}
+              onNext={() => goToStep(2)}
+            />
+          )}
 
-          {/* 说明 */}
-          <div className="mt-12 bg-white rounded-2xl shadow p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">使用说明</h3>
-            <ul className="space-y-2 text-gray-600 text-sm">
-              <li className="flex items-start gap-2">
-                <span className="text-blue-500">1.</span>
-                <span>上传一张竞品图作为风格参考，AI 会分析其版式和视觉风格</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-blue-500">2.</span>
-                <span>上传你的商品实拍图，AI 会识别产品特征</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-blue-500">3.</span>
-                <span>点击「开始生成」，AI 将融合两者生成新的产品图</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-gray-400">*</span>
-                <span className="text-gray-500">支持 JPG、PNG、WebP 格式，最大 10MB</span>
-              </li>
-            </ul>
-          </div>
+          {currentStep === 2 && (
+            <Step2StyleSource
+              generationMode={generationMode}
+              onModeChange={setGenerationMode}
+              competitorImagePath={competitorImage}
+              onCompetitorImageUpload={setCompetitorImage}
+              competitorName={competitorInfo.competitorName}
+              onCompetitorNameChange={(name) => setCompetitorInfo({ ...competitorInfo, competitorName: name })}
+              competitorCategory={competitorInfo.competitorCategory || ''}
+              onCompetitorCategoryChange={(category) => setCompetitorInfo({ ...competitorInfo, competitorCategory: category })}
+              selectedTemplateId={selectedTemplateId}
+              onTemplateSelect={setSelectedTemplateId}
+              onPrev={() => goToStep(1)}
+              onNext={() => goToStep(3)}
+            />
+          )}
 
-          {/* 历史记录 */}
-          <div className="mt-12">
-            <TaskHistoryList limit={6} showTitle={true} showLoadMore={false} />
-          </div>
+          {currentStep === 3 && productImage && (
+            <Step3Info
+              generationMode={generationMode}
+              productImagePath={productImage}
+              competitorImagePath={competitorImage}
+              selectedTemplateName={selectedTemplateName}
+              productInfo={productInfo}
+              onProductInfoChange={setProductInfo}
+              selectedModels={selectedModels}
+              onModelsChange={setSelectedModels}
+              jimenResolution={jimenResolution}
+              onJimenResolutionChange={setJimenResolution}
+              onPrev={() => goToStep(2)}
+              onSubmit={handleSubmit}
+              isSubmitting={isSubmitting}
+            />
+          )}
+
+          {/* 历史记录（仅在步骤1显示） */}
+          {currentStep === 1 && (
+            <div className="mt-12">
+              <TaskHistoryList limit={6} showTitle={true} showLoadMore={false} />
+            </div>
+          )}
         </div>
       </main>
     </>

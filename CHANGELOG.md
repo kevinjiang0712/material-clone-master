@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.6.0] - 2024-11-30
+
+### Added
+
+- **即梦分辨率选择**:
+  - 选择即梦模型时支持选择输出分辨率（1K/2K/4K）
+  - 新增 `JIMEN_RESOLUTION_OPTIONS` 配置（1024/2048/4096）
+  - 数据库新增 `jimenResolution` 字段存储分辨率选择
+  - 默认使用 2K 分辨率（2048×2048）
+
+- **风格模板模式**:
+  - 新增生成模式选择：竞品参考 / 风格模板
+  - 新增 `TemplateGallery` 组件展示预设风格模板
+  - 新增 `petStyleTemplates.ts` 定义宠物商品风格模板库
+  - 数据库新增 `generationMode`、`styleTemplateId` 字段
+
+- **AI 动态 Prompt 合成**:
+  - 第三步（提示词合成）改用 AI 大模型动态生成
+  - 新增 `synthesizePromptWithAI()` 函数替代静态字符串拼接
+  - AI 根据分析结果智能决定是否添加宠物元素及详细描述
+  - 提示词输出改为中文
+
+- **SafeImage 组件**:
+  - 新增 `SafeImage` 组件处理图片加载失败场景
+  - 图片不存在时显示优雅的占位符而非报错
+  - 解决数据库引用不存在图片文件导致的 400 错误
+
+- **向导式界面**:
+  - 首页重构为 3 步向导流程
+  - 新增 `StepIndicator` 步骤指示器组件
+  - 新增 `Step1Upload`、`Step2StyleSource`、`Step3Info` 向导组件
+  - 支持步骤间导航和信息预览
+
+### Changed
+
+- Next.js Image 组件优化：
+  - 所有 `fill` 属性的 Image 添加 `sizes` 属性
+  - 结果图片添加 `priority` 属性优化 LCP
+- `ModelSelector` 组件增强：选择即梦时显示分辨率选项
+- `imageGenerator.ts` 支持传递 `jimenResolution` 参数
+- `jimenImageGenerator.ts` 支持动态分辨率配置
+
+### Database
+
+- `Task` 表新增字段：
+  - `jimenResolution`: 即梦输出分辨率选择
+  - `generationMode`: 生成模式（competitor/template）
+  - `styleTemplateId`: 风格模板 ID
+
+---
+
 ## [0.5.0] - 2024-11-30
 
 ### Added

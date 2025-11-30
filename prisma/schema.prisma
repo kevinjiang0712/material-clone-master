@@ -18,12 +18,16 @@ model Task {
   resultImagePath     String?   // 保留兼容旧数据
   resultImages        String?   // JSON 数组: [{provider, model, path, error?}]
   selectedImageModels String?   // JSON 数组: ["jimen:doubao-seedream-4-0-250828", "openrouter:google/gemini-2.5-flash-image"]
+  jimenResolution     String?   // 即梦输出分辨率: "1k" | "2k" | "4k"
   competitorAnalysis  String?   // 合并版式+风格分析
   contentAnalysis     String?
   generatedPrompt     String?
   usedModels          String?   // JSON: 每个步骤使用的模型名称
   errorMessage        String?
   totalCost           Float?    // 总成本（美元）
+  // 生成模式
+  generationMode      String?   // 'competitor' | 'template'，null 视为 competitor
+  styleTemplateId     String?   // 模板模式使用的模板 ID
   // 竞品基础信息
   competitorName      String?   // 竞品名称
   competitorCategory  String?   // 竞品类目

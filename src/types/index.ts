@@ -173,13 +173,16 @@ export interface TaskStatusResponse {
   contentAnalysis?: ContentAnalysis | null;
   generatedPrompt?: string | null;
   usedModels?: UsedModels | null;
+  // 生成模式信息
+  generationMode?: GenerationMode;
+  styleTemplateId?: string;
 }
 
 // 记录每个步骤使用的模型
 export interface UsedModels {
   step1_competitor: string;  // 分析竞品图（版式+风格）
   step2_content: string;     // 分析实拍图内容
-  step3_prompt: string;      // 合成提示词（本地处理）
+  step3_prompt: string;      // 合成提示词（AI 动态生成）
   step4_image: string;       // 生成图片
 }
 
@@ -212,6 +215,8 @@ export interface TaskResultResponse {
   resultImagePath: string;       // 兼容旧数据，取第一张成功的图
   resultImages: ResultImage[];   // 多图结果
   selectedImageModels: string[]; // 选择的模型列表
+  generationMode: GenerationMode; // 生成模式
+  styleTemplateId?: string;       // 模板模式使用的模板 ID
   generatedPrompt: string;
   competitorAnalysis: CompetitorAnalysis | null;
   contentAnalysis: ContentAnalysis | null;
@@ -241,12 +246,25 @@ export interface ProductInfo {
   brandTone?: string[];
 }
 
+// 生成模式
+export type GenerationMode = 'competitor' | 'template';
+
 export interface CreateTaskRequest {
-  competitorImagePath: string;
+  // 必须
   productImagePath: string;
+  generationMode: GenerationMode;
+
+  // 竞品模式必须
+  competitorImagePath?: string;
   competitorInfo?: CompetitorInfo;
+
+  // 模板模式必须
+  styleTemplateId?: string;
+
+  // 可选（两种模式都支持）
   productInfo?: ProductInfo;
   selectedImageModels?: string[];  // 选择的模型列表，最多3个
+  jimenResolution?: string;        // 即梦输出分辨率: "1k" | "2k" | "4k"
 }
 
 export interface CreateTaskResponse {

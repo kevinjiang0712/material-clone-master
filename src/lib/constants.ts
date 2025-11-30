@@ -82,6 +82,22 @@ export const MAX_IMAGES_PER_TASK = 10;
 // 即梦 API 固定价格（元/张）
 export const JIMEN_COST_PER_IMAGE = 0.2;
 
+// 即梦分辨率选项
+export interface JimenResolutionOption {
+  id: string;
+  name: string;
+  size: number;  // 正方形边长
+  description: string;
+}
+
+export const JIMEN_RESOLUTION_OPTIONS: JimenResolutionOption[] = [
+  { id: '1k', name: '1K', size: 1024, description: '1024×1024 快速预览' },
+  { id: '2k', name: '2K', size: 2048, description: '2048×2048 推荐' },
+  { id: '4k', name: '4K', size: 4096, description: '4096×4096 超高清' },
+];
+
+export const DEFAULT_JIMEN_RESOLUTION = '2k';
+
 // 美元兑人民币汇率（用于参考汇总显示）
 export const USD_TO_CNY_RATE = 7.2;
 

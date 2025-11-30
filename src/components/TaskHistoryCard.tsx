@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import SafeImage from './SafeImage';
 
 interface TaskHistoryCardProps {
   task: {
@@ -110,23 +110,34 @@ export default function TaskHistoryCard({ task }: TaskHistoryCardProps) {
 
       {/* 图片预览 */}
       <div className="grid grid-cols-3 gap-2 mb-3">
-        {/* 竞品图 */}
+        {/* 竞品图 或 风格模板 */}
         <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-          <Image
-            src={task.competitorImagePath}
-            alt="竞品图"
-            fill
-            sizes="(max-width: 768px) 33vw, 200px"
-            className="object-cover"
-          />
-          <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs px-1 py-0.5 text-center">
-            竞品图
-          </div>
+          {task.competitorImagePath ? (
+            <>
+              <SafeImage
+                src={task.competitorImagePath}
+                alt="竞品图"
+                fill
+                sizes="(max-width: 768px) 33vw, 200px"
+                className="object-cover"
+              />
+              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs px-1 py-0.5 text-center">
+                竞品图
+              </div>
+            </>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-purple-50">
+              <svg className="w-6 h-6 text-purple-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+              <div className="text-purple-600 text-xs">风格模板</div>
+            </div>
+          )}
         </div>
 
         {/* 实拍图 */}
         <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-          <Image
+          <SafeImage
             src={task.productImagePath}
             alt="实拍图"
             fill
@@ -142,7 +153,7 @@ export default function TaskHistoryCard({ task }: TaskHistoryCardProps) {
         <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
           {task.resultImagePath ? (
             <>
-              <Image
+              <SafeImage
                 src={task.resultImagePath}
                 alt="生成结果"
                 fill

@@ -644,3 +644,117 @@ TASK: Create a professional e-commerce product photo that:
 3. Uses creative scene design to highlight the product's selling points
 4. Looks premium, appealing, and ready for online sales`;
 }
+
+/**
+ * 使用 AI 动态合成提示词
+ * 根据竞品分析、实拍图分析和商品信息，智能生成图像生成提示词
+ */
+export async function synthesizePromptWithAI(
+  layout: LayoutAnalysis,
+  style: StyleAnalysis,
+  content: ContentAnalysis,
+  competitorInfo?: CompetitorInfo | null,
+  productInfo?: ProductInfo | null,
+  copywriting?: CopywritingInfo | null
+): Promise<AnalysisResponse<string>> {
+  console.log('[OpenRouter] synthesizePromptWithAI called');
+  console.log('[OpenRouter] Using model:', VISION_MODEL);
+
+  // 构建输入信息
+  const productContext = productInfo ? `
+### 商品基本信息
+- 商品名称: ${productInfo.productName || '未提供'}
+- 商品类目: ${productInfo.productCategory || '未提供'}
+- 核心卖点: ${productInfo.sellingPoints || '未提供'}
+- 目标人群: ${productInfo.targetAudience || '未提供'}
+- 品牌调性: ${productInfo.brandTone?.join('、') || '未提供'}` : '';
+
+  const competitorContext = competitorInfo ? `
+### 竞品信息
+- 竞品名称: ${competitorInfo.competitorName}
+- 竞品类目: ${competitorInfo.competitorCategory || '未提供'}` : '';
+
+  const prompt = `你是一个专业的电商产品图生成提示词专家。
+
+## 输入信息
+
+### 竞品图版式分析
+${JSON.stringify(layout, null, 2)}
+
+### 竞品图风格分析
+${JSON.stringify(style, null, 2)}
+
+### 竞品图文案与卖点
+${JSON.stringify(copywriting, null, 2)}
+
+### 实拍商品图分析（产品物理特征）
+${JSON.stringify(content, null, 2)}
+${competitorContext}
+${productContext}
+
+## 你的任务
+根据以上所有信息，生成一个专业的电商产品图生成提示词。
+
+## 关键规则
+
+### 1. 产品物理属性（必须保持不变）
+- 产品的形状、颜色、材质必须与实拍图分析中描述的完全一致
+- 不能改变产品的任何物理特征
+- 明确描述产品的外观特征，确保生成图像中的产品与原图一致
+
+### 2. 智能场景设计
+根据商品类目、卖点和目标人群，智能决定场景元素：
+
+**关于是否添加宠物**：
+分析以下因素来决定是否需要在场景中添加宠物：
+- 商品是否为宠物相关产品（宠物食品、宠物用品、宠物玩具、宠物服饰等）
+- 商品卖点是否与宠物生活相关
+- 目标人群是否为宠物主人
+- 添加宠物是否能增强商品的吸引力和卖点表达
+
+**如果决定添加宠物，必须详细描述**：
+- 宠物类型和特征（如：毛茸茸的橘猫、金毛幼犬、英短蓝猫、布偶猫）
+- 自然生动的姿态（如：慵懒地伸懒腰、好奇地歪着头、开心地摇着尾巴、蜷缩在一旁、趴在地上抬头看）
+- 有感染力的表情（如：明亮有神的大眼睛、惬意地眯着眼、微微吐出小舌头、竖起耳朵、露出满足的神情）
+- 与商品的自然互动（如：用爪子轻轻触碰商品、依偎在商品旁边、好奇地嗅闻、围着商品打转、舒服地躺在旁边）
+- 毛发质感（如：柔软蓬松的毛发在光线下泛着光泽、打理得光亮顺滑的皮毛、绒毛在灯光下显得温暖柔和）
+
+### 3. 参考竞品风格
+- 背景风格、光影效果、色调氛围应参考竞品图的风格分析结果
+- 构图方式参考竞品的版式分析结果
+- 整体氛围和情绪要与竞品图保持一致
+
+### 4. 其他场景元素
+根据商品特性，可以添加适当的场景元素：
+- 背景道具和装饰
+- 光影效果
+- 氛围营造元素
+
+## 输出要求
+直接输出中文提示词，不要任何额外说明、标题或 JSON 包装。
+提示词应该是一段完整、详细的描述，可以直接用于图像生成模型。
+确保提示词包含：产品描述、场景设计、光影氛围、以及是否包含宠物及其详细描述（如果适用）。`;
+
+  return withRetry(async () => {
+    const response = await openrouter.chat.completions.create({
+      model: VISION_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      max_tokens: 2000,
+    });
+
+    console.log('[OpenRouter] synthesizePromptWithAI response status:', response.choices[0].finish_reason);
+    const generatedPrompt = response.choices[0].message.content || '';
+    console.log('[OpenRouter] synthesizePromptWithAI generated prompt length:', generatedPrompt.length);
+
+    const generationId = response.id || '';
+    console.log('[OpenRouter] synthesizePromptWithAI generationId:', generationId);
+    console.log('[OpenRouter] synthesizePromptWithAI completed successfully');
+
+    return { data: generatedPrompt.trim(), generationId };
+  }, 'synthesizePromptWithAI');
+}

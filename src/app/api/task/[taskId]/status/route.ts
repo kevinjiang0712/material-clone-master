@@ -33,6 +33,8 @@ export async function GET(
         contentAnalysis: true,
         generatedPrompt: true,
         usedModels: true,
+        generationMode: true,
+        styleTemplateId: true,
       },
     });
 
@@ -59,6 +61,9 @@ export async function GET(
       contentAnalysis: parseJson(task.contentAnalysis),
       generatedPrompt: task.generatedPrompt,
       usedModels: parseJson(task.usedModels),
+      // 生成模式信息
+      generationMode: (task.generationMode as 'competitor' | 'template') || 'competitor',
+      styleTemplateId: task.styleTemplateId || undefined,
     };
 
     return NextResponse.json(response);

@@ -296,13 +296,15 @@ export function isImageGeneratorConfigured(): boolean {
  * @param sourceImageBase64 - 实拍图的 base64 编码
  * @param prompt - 生成提示词
  * @param productImagePath - 产品图路径（Mock 模式用）
+ * @param jimenResolution - 即梦模型输出分辨率: "1k" | "2k" | "4k"
  * @returns 生成结果
  */
 export async function generateImageWithModel(
   modelId: string,
   sourceImageBase64: string,
   prompt: string,
-  productImagePath: string
+  productImagePath: string,
+  jimenResolution?: string
 ): Promise<ImageGenerationResponse> {
   // 检查是否使用 Mock
   const useMock = process.env.USE_MOCK_GENERATION === 'true';
@@ -321,6 +323,7 @@ export async function generateImageWithModel(
     return jimenImageGenerator.generateImage({
       sourceImageBase64,
       prompt,
+      resolutionId: jimenResolution,
     });
   }
 

@@ -4,7 +4,7 @@
  * 使用火山引擎 Ark API 进行图像生成
  */
 
-import { JIMEN_COST_PER_IMAGE } from '@/lib/constants';
+import { JIMEN_COST_PER_IMAGE, JIMEN_RESOLUTION_OPTIONS, DEFAULT_JIMEN_RESOLUTION } from '@/lib/constants';
 import { fetchWithRetry } from '@/lib/fetchWithTimeout';
 
 // 获取配置
@@ -20,8 +20,7 @@ export function getJimenModel(): string {
 interface JimenImageGenerateOptions {
   sourceImageBase64: string;
   prompt: string;
-  width?: number;
-  height?: number;
+  resolutionId?: string;  // "1k" | "2k" | "4k"
 }
 
 interface JimenImageGenerationResponse {
@@ -53,10 +52,16 @@ interface JimenApiResponse {
 export async function generateImage(
   options: JimenImageGenerateOptions
 ): Promise<JimenImageGenerationResponse> {
-  const { sourceImageBase64, prompt, width = 2048, height = 2048 } = options;
+  const { sourceImageBase64, prompt, resolutionId = DEFAULT_JIMEN_RESOLUTION } = options;
+
+  // 根据 resolutionId 获取实际分辨率
+  const resolution = JIMEN_RESOLUTION_OPTIONS.find(r => r.id === resolutionId)
+    || JIMEN_RESOLUTION_OPTIONS.find(r => r.id === DEFAULT_JIMEN_RESOLUTION)!;
+  const size = resolution.size;
 
   console.log(`\n[JimenGenerator] ==================== START ====================`);
   console.log(`[JimenGenerator] Model: ${JIMEN_MODEL}`);
+  console.log(`[JimenGenerator] Resolution: ${resolution.name} (${size}x${size})`);
   console.log(`[JimenGenerator] Image base64 length: ${sourceImageBase64.length}`);
   console.log(`[JimenGenerator] Prompt preview: ${prompt.substring(0, 200)}...`);
 
@@ -77,7 +82,7 @@ KEY PRINCIPLE:
 ${prompt}
 
 Generate a high-quality product photo that looks professional and appealing for online sales.`,
-      size: `${width}x${height}`,
+      size: `${size}x${size}`,
       image: [`data:image/jpeg;base64,${sourceImageBase64}`],
       watermark: false,  // 关闭水印
     };
