@@ -7,12 +7,14 @@ interface Step1UploadProps {
   productImagePath: string | null;
   onProductImageUpload: (path: string) => void;
   onNext: () => void;
+  onOpenMaterialLibrary?: () => void;
 }
 
 export default function Step1Upload({
   productImagePath,
   onProductImageUpload,
   onNext,
+  onOpenMaterialLibrary,
 }: Step1UploadProps) {
   const canProceed = !!productImagePath;
 
@@ -39,7 +41,24 @@ export default function Step1Upload({
           </button>
         </div>
       ) : (
-        <ImageUploader type="product" onUpload={onProductImageUpload} />
+        <div className="space-y-4">
+          <ImageUploader type="product" onUpload={onProductImageUpload} />
+
+          {/* 从素材库选择按钮 */}
+          {onOpenMaterialLibrary && (
+            <div className="flex items-center justify-center">
+              <button
+                onClick={onOpenMaterialLibrary}
+                className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span>从素材库选择</span>
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* 下一步按钮 */}

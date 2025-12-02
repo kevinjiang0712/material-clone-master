@@ -271,3 +271,54 @@ export interface CreateTaskResponse {
   taskId: string;
   message: string;
 }
+
+// ============ 评分系统相关类型 ============
+
+// 任务评分
+export interface TaskRating {
+  id: string;
+  taskId: string;
+  overallRating: number;
+  imageQuality: number | null;
+  styleMatch: number | null;
+  productFidelity: number | null;
+  creativity: number | null;
+  comment: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// 图片评分
+export interface ImageRating {
+  id: string;
+  taskId: string;
+  imagePath: string;
+  modelId: string;
+  provider: string;
+  overallRating: number;
+  imageQuality: number | null;
+  styleMatch: number | null;
+  productFidelity: number | null;
+  creativity: number | null;
+  comment: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// 评分统计
+export interface RatingStatistics {
+  avgOverallRating: number;
+  avgImageQuality: number;
+  avgStyleMatch: number;
+  avgProductFidelity: number;
+  avgCreativity: number;
+  ratedImagesCount: number;
+  totalImagesCount: number;
+}
+
+// 任务评分响应
+export interface TaskRatingsResponse {
+  taskRating: TaskRating | null;
+  imageRatings: ImageRating[];
+  statistics: RatingStatistics;
+}

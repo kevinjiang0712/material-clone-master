@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SafeImage from './SafeImage';
+import { getTemplateById } from '@/lib/petStyleTemplates';
 
 interface TaskHistoryCardProps {
   task: {
@@ -10,11 +11,12 @@ interface TaskHistoryCardProps {
     status: string;
     currentStep: number;
     totalSteps: number;
-    competitorImagePath: string;
+    competitorImagePath: string | null;
     productImagePath: string;
     resultImagePath: string | null;
     errorMessage: string | null;
     createdAt: Date | string;
+    styleTemplateId?: string | null;
   };
 }
 
@@ -61,8 +63,10 @@ export default function TaskHistoryCard({ task }: TaskHistoryCardProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          competitorImagePath: task.competitorImagePath,
           productImagePath: task.productImagePath,
+          generationMode: task.competitorImagePath ? 'competitor' : 'template',
+          competitorImagePath: task.competitorImagePath || undefined,
+          styleTemplateId: task.styleTemplateId || undefined,
         }),
       });
 
@@ -85,7 +89,7 @@ export default function TaskHistoryCard({ task }: TaskHistoryCardProps) {
     <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-4 border border-gray-100">
       {/* 任务ID */}
       <div
-        className="text-xs text-gray-400 font-mono mb-2 truncate cursor-pointer hover:text-gray-600"
+        className="text-xs text-gray-400 font-mono mb-2 break-all cursor-pointer hover:text-gray-600"
         title="点击复制"
         onClick={() => navigator.clipboard.writeText(task.id)}
       >
@@ -126,12 +130,30 @@ export default function TaskHistoryCard({ task }: TaskHistoryCardProps) {
               </div>
             </>
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-purple-50">
-              <svg className="w-6 h-6 text-purple-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-              </svg>
-              <div className="text-purple-600 text-xs">风格模板</div>
-            </div>
+            (() => {
+              const template = task.styleTemplateId ? getTemplateById(task.styleTemplateId) : null;
+              return template?.thumbnail ? (
+                <>
+                  <SafeImage
+                    src={template.thumbnail}
+                    alt={template.name || '风格模板'}
+                    fill
+                    sizes="(max-width: 768px) 33vw, 200px"
+                    className="object-cover"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-purple-500/70 text-white text-xs px-1 py-0.5 text-center">
+                    风格模板
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-purple-50">
+                  <svg className="w-6 h-6 text-purple-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                  </svg>
+                  <div className="text-purple-600 text-xs">风格模板</div>
+                </div>
+              );
+            })()
           )}
         </div>
 

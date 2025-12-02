@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.7.0] - 2024-12-02
+
+### Added
+
+- **评分系统**:
+  - 新增任务整体评分功能（1-5 星）
+  - 新增单张图片评分功能，支持多维度评价
+  - 评分维度：图像质量、风格匹配度、商品还原度、创意性
+  - 支持文字评论反馈
+  - 新增 `TaskRating`、`ImageRating` 数据表
+  - 新增 `StarRating`、`RatingPanel`、`TaskRatingForm`、`ImageRatingGrid` 组件
+  - 新增 `/api/ratings/task`、`/api/ratings/image` API 端点
+
+- **素材库功能**:
+  - 新增素材库页面 `/materials`，集中管理上传的图片素材
+  - 新增 `Material` 数据表存储素材元数据
+  - 新增 `MaterialLibrary` 组件展示素材库
+  - 新增 `/api/materials` API 端点管理素材
+  - 支持素材类型分类（产品图/竞品图）
+
+- **历史记录页面**:
+  - 新增独立历史记录页面 `/history`
+  - 优化历史任务展示和筛选
+
+- **即梦图生图增强**:
+  - 新增画笔蒙版参考（brush_mask）功能
+  - 新增边缘参考（canny）功能
+  - 新增深度参考（depth）功能
+  - 新增风格参考（style）功能
+  - 支持多重参考图叠加使用
+  - 结果页展示参考类型信息
+
+### Changed
+
+- 首页布局优化，改进向导式交互体验
+- `TaskHistoryCard` 组件支持更多状态展示
+- `ImageComparison` 组件增强对比功能
+- 风格模板库精简优化
+- 图像生成器架构重构，支持多种参考模式
+
+### Database
+
+- 新增 `Material` 表存储素材信息
+- 新增 `TaskRating` 表存储任务评分
+- 新增 `ImageRating` 表存储图片评分
+
+---
+
 ## [0.6.0] - 2024-11-30
 
 ### Added

@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
         errorMessage: true,
         createdAt: true,
         updatedAt: true,
+        styleTemplateId: true,
       },
     });
 

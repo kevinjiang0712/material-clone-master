@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import ModelSelector from '../ModelSelector';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import TagSelect from '../ui/TagSelect';
@@ -14,6 +13,7 @@ interface Step3InfoProps {
   productImagePath: string;
   competitorImagePath?: string | null;
   selectedTemplateName?: string | null;
+  selectedTemplateThumbnail?: string | null;
   // 商品信息
   productInfo: ProductInfo;
   onProductInfoChange: (info: ProductInfo) => void;
@@ -49,6 +49,7 @@ export default function Step3Info({
   productImagePath,
   competitorImagePath,
   selectedTemplateName,
+  selectedTemplateThumbnail,
   productInfo,
   onProductInfoChange,
   selectedModels,
@@ -97,6 +98,14 @@ export default function Step3Info({
                 <Image
                   src={competitorImagePath}
                   alt="竞品参考图"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 50vw, 200px"
+                />
+              ) : generationMode === 'template' && selectedTemplateThumbnail ? (
+                <Image
+                  src={selectedTemplateThumbnail}
+                  alt={selectedTemplateName || '风格模板'}
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 50vw, 200px"

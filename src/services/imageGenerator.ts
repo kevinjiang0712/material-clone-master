@@ -297,6 +297,7 @@ export function isImageGeneratorConfigured(): boolean {
  * @param prompt - 生成提示词
  * @param productImagePath - 产品图路径（Mock 模式用）
  * @param jimenResolution - 即梦模型输出分辨率: "1k" | "2k" | "4k"
+ * @param styleImageBase64 - 风格参考图的 base64 编码（模板图或竞品图）
  * @returns 生成结果
  */
 export async function generateImageWithModel(
@@ -304,7 +305,8 @@ export async function generateImageWithModel(
   sourceImageBase64: string,
   prompt: string,
   productImagePath: string,
-  jimenResolution?: string
+  jimenResolution?: string,
+  styleImageBase64?: string
 ): Promise<ImageGenerationResponse> {
   // 检查是否使用 Mock
   const useMock = process.env.USE_MOCK_GENERATION === 'true';
@@ -318,10 +320,14 @@ export async function generateImageWithModel(
   const model = modelParts.join(':');  // 处理 model 名称中可能包含冒号的情况
 
   console.log(`[ImageGenerator] Generating with provider=${provider}, model=${model}`);
+  if (styleImageBase64) {
+    console.log(`[ImageGenerator] Dual-image mode: product + style reference`);
+  }
 
   if (provider === 'jimen') {
     return jimenImageGenerator.generateImage({
       sourceImageBase64,
+      styleImageBase64,
       prompt,
       resolutionId: jimenResolution,
     });
@@ -331,7 +337,42 @@ export async function generateImageWithModel(
   return realGenerateImageWithModel(model, {
     sourceImageBase64,
     prompt,
-  });
+  }, styleImageBase64);
+}
+
+/**
+ * 构建 OpenRouter 双图模式的 Prompt
+ */
+function buildOpenRouterDualImagePrompt(originalPrompt: string, hasStyleRef: boolean): string {
+  if (!hasStyleRef) {
+    return `TASK: Create a stunning e-commerce product photo.
+
+KEY PRINCIPLE:
+- Product's PHYSICAL properties (shape, color, material) must stay IDENTICAL
+- Everything else (background, scene, props, lighting, atmosphere) can be creatively enhanced
+
+${originalPrompt}
+
+Generate a high-quality product photo that looks professional and appealing for online sales.`;
+  }
+
+  return `TASK: 生成电商产品图，严格按照以下规则：
+
+【图1】是产品实拍图：
+- 必须保持产品的形状、颜色、材质完全不变
+- 产品外观是绝对约束，不可修改
+
+【图2】是风格参考模板：
+- 学习图2的背景风格（颜色、渐变、氛围）
+- 学习图2的光影效果（光源方向、阴影柔和度）
+- 学习图2的整体视觉氛围和调性
+- 学习图2的构图方式
+
+【生成要求】
+将图1的产品放入图2的风格环境中，生成专业电商产品图。
+
+【附加信息】
+${originalPrompt}`;
 }
 
 /**
@@ -339,42 +380,53 @@ export async function generateImageWithModel(
  */
 async function realGenerateImageWithModel(
   model: string,
-  options: ImageGenerateOptions
+  options: ImageGenerateOptions,
+  styleImageBase64?: string
 ): Promise<ImageGenerationResponse> {
   const { sourceImageBase64, prompt } = options;
+  const hasDualImage = !!styleImageBase64;
 
   console.log(`\n[ImageGenerator] ==================== START ====================`);
   console.log(`[ImageGenerator] Model: ${model}`);
-  console.log(`[ImageGenerator] Image base64 length: ${sourceImageBase64.length}`);
+  console.log(`[ImageGenerator] Mode: ${hasDualImage ? '双图模式（产品图+风格参考图）' : '单图模式'}`);
+  console.log(`[ImageGenerator] Product image base64 length: ${sourceImageBase64.length}`);
+  if (styleImageBase64) {
+    console.log(`[ImageGenerator] Style image base64 length: ${styleImageBase64.length}`);
+  }
   console.log(`[ImageGenerator] Prompt preview: ${prompt.substring(0, 200)}...`);
 
   try {
-    // 构建基础请求体
+    // 构建内容数组：文本 + 产品图 + 风格图（如果有）
+    const contentArray: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+      {
+        type: 'text',
+        text: buildOpenRouterDualImagePrompt(prompt, hasDualImage),
+      },
+      {
+        type: 'image_url',
+        image_url: {
+          url: `data:image/jpeg;base64,${sourceImageBase64}`
+        },
+      },
+    ];
+
+    // 如果有风格参考图，添加第二张图片
+    if (styleImageBase64) {
+      contentArray.push({
+        type: 'image_url',
+        image_url: {
+          url: `data:image/jpeg;base64,${styleImageBase64}`
+        },
+      });
+    }
+
+    // 构建请求体
     const requestBody: Record<string, unknown> = {
       model: model,
       messages: [
         {
           role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: `TASK: Create a stunning e-commerce product photo inspired by competitor's style.
-
-KEY PRINCIPLE:
-- Product's PHYSICAL properties (shape, color, material) must stay IDENTICAL
-- Everything else (background, scene, props, lighting, atmosphere) can be creatively enhanced
-
-${prompt}
-
-Generate a high-quality product photo that looks professional and appealing for online sales.`,
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${sourceImageBase64}`
-              },
-            },
-          ],
+          content: contentArray,
         },
       ],
     };

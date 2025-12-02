@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import ImageUploader from '../ImageUploader';
 import ImagePreview from '../ImagePreview';
 import TemplateGallery from './TemplateGallery';
@@ -18,7 +17,7 @@ interface Step2StyleSourceProps {
   onCompetitorCategoryChange: (category: string) => void;
   // 模板模式
   selectedTemplateId: string | null;
-  onTemplateSelect: (templateId: string) => void;
+  onTemplateSelect: (templateId: string, templateName: string, templateThumbnail: string) => void;
   // 导航
   onPrev: () => void;
   onNext: () => void;

@@ -16,6 +16,7 @@ interface ImageComparisonProps {
   // 模板模式相关
   generationMode?: 'competitor' | 'template';
   templateName?: string;
+  templateThumbnail?: string;  // 模板缩略图路径
 }
 
 interface ImageModalProps {
@@ -101,6 +102,7 @@ export default function ImageComparison({
   onImageClick,
   generationMode = 'competitor',
   templateName,
+  templateThumbnail,
 }: ImageComparisonProps) {
   const [modalImage, setModalImage] = useState<{
     src: string;
@@ -135,17 +137,30 @@ export default function ImageComparison({
       <div className={`grid gap-4 ${gridCols}`}>
         {/* 竞品图 或 模板标识 */}
         {isTemplateMode ? (
-          // 模板模式：显示模板标识卡片
+          // 模板模式：显示模板缩略图
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <div className="px-4 py-3 font-medium bg-purple-100 text-purple-700 text-sm">
               风格模板
             </div>
-            <div className="relative aspect-square bg-gradient-to-br from-purple-50 to-pink-50 flex flex-col items-center justify-center">
-              <svg className="w-16 h-16 text-purple-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-              </svg>
-              <p className="text-lg font-medium text-purple-700">{templateName || '风格模板'}</p>
-              <p className="text-sm text-purple-500 mt-1">预设风格</p>
+            <div className="relative aspect-square">
+              {templateThumbnail ? (
+                <Image
+                  src={templateThumbnail}
+                  alt={templateName || '风格模板'}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                />
+              ) : (
+                // 降级显示：无缩略图时显示图标
+                <div className="w-full h-full bg-gradient-to-br from-purple-50 to-pink-50 flex flex-col items-center justify-center">
+                  <svg className="w-16 h-16 text-purple-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                  </svg>
+                  <p className="text-lg font-medium text-purple-700">{templateName || '风格模板'}</p>
+                  <p className="text-sm text-purple-500 mt-1">预设风格</p>
+                </div>
+              )}
             </div>
           </div>
         ) : competitorImage ? (

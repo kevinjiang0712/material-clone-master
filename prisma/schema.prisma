@@ -41,6 +41,8 @@ model Task {
   updatedAt           DateTime  @updatedAt
   apiCalls            ApiCall[]
   stepTimings         StepTiming[]
+  taskRating          TaskRating?    // 整体任务评分
+  imageRatings        ImageRating[]  // 单张图片评分列表
 }
 
 model ApiCall {
@@ -69,4 +71,80 @@ model StepTiming {
 
   @@unique([taskId, step])
   @@index([taskId])
+}
+
+model Material {
+  id        String   @id @default(uuid())
+  name      String?                    // 素材名称（可选）
+  path      String                     // 图片路径 /uploads/material/xxx.jpg
+  type      String   @default("product") // 素材类型：product/competitor
+  source    String   @default("upload")  // 来源：upload(直接上传)/task(任务上传)
+  taskId    String?                    // 关联的任务ID（如果来自任务）
+  fileSize  Int?                       // 文件大小（字节）
+  width     Int?                       // 图片宽度
+  height    Int?                       // 图片高度
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([createdAt])
+}
+
+model TaskRating {
+  id              String   @id @default(uuid())
+  taskId          String   @unique
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // 整体评分
+  overallRating   Int      // 1-5 星
+
+  // 多维度评分（各1-5星，可选）
+  imageQuality    Int?     // 图像质量
+  styleMatch      Int?     // 风格匹配度
+  productFidelity Int?     // 商品还原度
+  creativity      Int?     // 创意性
+
+  // 文字反馈
+  comment         String?  // 评论或改进建议
+
+  // 元数据
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([taskId])
+  @@index([overallRating])
+  @@index([createdAt])
+}
+
+model ImageRating {
+  id              String   @id @default(uuid())
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // 关联图片信息
+  imagePath       String   // 图片路径（resultImages 中的 path）
+  modelId         String   // 模型标识（如 "jimen:doubao-seedream-4-0-250828"）
+  provider        String   // "openrouter" | "jimen"
+
+  // 整体评分
+  overallRating   Int      // 1-5 星
+
+  // 多维度评分（可选）
+  imageQuality    Int?     // 图像质量
+  styleMatch      Int?     // 风格匹配度
+  productFidelity Int?     // 商品还原度
+  creativity      Int?     // 创意性
+
+  // 文字反馈
+  comment         String?  // 评论或改进建议
+
+  // 元数据
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([taskId, imagePath])  // 每张图片只能评分一次
+  @@index([taskId])
+  @@index([modelId])
+  @@index([overallRating])
+  @@index([createdAt])
 }

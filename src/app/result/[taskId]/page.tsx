@@ -9,6 +9,7 @@ import ImageComparison from '@/components/ImageComparison';
 import ImageHistorySection from '@/components/ImageHistorySection';
 import StepAnalysisCard from '@/components/StepAnalysisCard';
 import Button from '@/components/ui/Button';
+import RatingPanel from '@/components/rating/RatingPanel';
 import { TaskStatusResponse, TaskResultResponse, ApiCallInfo, ResultImage, StepTimingInfo } from '@/types';
 import { POLLING_INTERVAL, AVAILABLE_IMAGE_MODELS, MAX_IMAGES_PER_TASK } from '@/lib/constants';
 import { getTemplateById } from '@/lib/petStyleTemplates';
@@ -1013,6 +1014,7 @@ export default function ResultPage() {
               onImageClick={handleImageClick}
               generationMode={result.generationMode}
               templateName={result.styleTemplateId ? getTemplateById(result.styleTemplateId)?.name : undefined}
+              templateThumbnail={result.styleTemplateId ? getTemplateById(result.styleTemplateId)?.thumbnail : undefined}
             />
 
             {/* 历史生成记录 */}
@@ -1165,6 +1167,17 @@ export default function ResultPage() {
                 )}
               </div>
             </div>
+
+            {/* 评价与反馈 */}
+            {result.resultImages && result.resultImages.filter((img: ResultImage) => img.path).length > 0 && (
+              <div className="mt-12 border-t pt-8">
+                <h2 className="text-2xl font-bold mb-6 text-gray-900">评价与反馈</h2>
+                <RatingPanel
+                  taskId={taskId}
+                  resultImages={result.resultImages}
+                />
+              </div>
+            )}
           </>
         )}
 

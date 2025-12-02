@@ -20,7 +20,7 @@ interface TemplateCategory {
 
 interface TemplateGalleryProps {
   selectedTemplateId: string | null;
-  onSelect: (templateId: string) => void;
+  onSelect: (templateId: string, templateName: string, templateThumbnail: string) => void;
 }
 
 export default function TemplateGallery({ selectedTemplateId, onSelect }: TemplateGalleryProps) {
@@ -78,7 +78,7 @@ export default function TemplateGallery({ selectedTemplateId, onSelect }: Templa
                 key={template.id}
                 template={template}
                 isSelected={selectedTemplateId === template.id}
-                onSelect={() => onSelect(template.id)}
+                onSelect={() => onSelect(template.id, template.name, template.thumbnail)}
               />
             ))}
           </div>

@@ -131,3 +131,20 @@ export const GEMINI_MODELS = [
   'google/gemini-2.5-flash-image',
   'google/gemini-3-pro-image-preview',
 ];
+
+// 品牌水印配置
+export const BRAND_WATERMARK_CONFIG = {
+  brandName: '黄白豆宠物',
+  slogan: '简单美观实用',
+  logoPath: 'brand/logo.png',  // 相对于 public 目录
+  style: {
+    fontSize: 36,           // 品牌名和 SLOGAN 字号（基于 2048px 图片）
+    fontFamily: 'sans-serif',
+    color: '#FFFFFF',
+    shadowColor: 'rgba(0,0,0,0.6)',
+    shadowBlur: 4,
+    padding: 40,            // 距离边缘的内边距
+    logoSize: 48,           // Logo 高度
+    logoGap: 12,            // Logo 与品牌名之间的间距
+  },
+};
