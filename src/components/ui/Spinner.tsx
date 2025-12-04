@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { cn } from '@/lib/utils';
 
 interface SpinnerProps {
@@ -14,11 +15,7 @@ const sizeClasses = {
 export default function Spinner({ size = 'md', className }: SpinnerProps) {
   return (
     <div
-      className={cn(
-        'animate-spin rounded-full border-gray-200 border-t-blue-600',
-        sizeClasses[size],
-        className
-      )}
+      className={`animate-spin rounded-full border-2 border-[#333] border-t-[#e07a5f] ${sizeClasses[size]} ${className}`}
     />
   );
 }

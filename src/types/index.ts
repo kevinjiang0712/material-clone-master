@@ -322,3 +322,102 @@ export interface TaskRatingsResponse {
   imageRatings: ImageRating[];
   statistics: RatingStatistics;
 }
+
+// ============ 批量任务相关类型 ============
+
+export type BatchTaskStatus = 'pending' | 'processing' | 'completed' | 'partial_failed' | 'failed';
+
+export interface BatchTask {
+  id: string;
+  status: BatchTaskStatus;
+  totalCount: number;
+  completedCount: number;
+  failedCount: number;
+  generationMode: GenerationMode;
+  competitorImagePath: string | null;
+  styleTemplateId: string | null;
+  competitorName: string | null;
+  competitorCategory: string | null;
+  productInfo: string | null;         // JSON: ProductInfo (不含 productName)
+  selectedImageModels: string;        // JSON: string[]
+  jimenResolution: string;
+  competitorAnalysis: string | null;  // JSON: CompetitorAnalysis
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// 素材信息（用于批量选择）
+export interface MaterialInfo {
+  id: string;
+  name: string | null;
+  path: string;
+}
+
+// 创建批量任务请求
+export interface CreateBatchTaskRequest {
+  materials: MaterialInfo[];           // 多张实拍图的素材信息
+  generationMode: GenerationMode;
+  competitorImagePath?: string;
+  competitorInfo?: CompetitorInfo;
+  styleTemplateId?: string;
+  productInfo?: Omit<ProductInfo, 'productName'>; // 不含 productName
+  selectedImageModels?: string[];
+  jimenResolution?: string;
+}
+
+// 创建批量任务响应
+export interface CreateBatchTaskResponse {
+  batchTaskId: string;
+  taskIds: string[];
+  message: string;
+}
+
+// 批量任务中的子任务状态
+export interface BatchSubTaskStatus {
+  id: string;
+  batchIndex: number;
+  status: TaskStatus;
+  currentStep: number;
+  productImagePath: string;
+  productName: string | null;
+  resultImages?: ResultImage[];
+  errorMessage?: string;
+}
+
+// 批量任务状态响应
+export interface BatchTaskStatusResponse {
+  id: string;
+  status: BatchTaskStatus;
+  totalCount: number;
+  completedCount: number;
+  failedCount: number;
+  progress: number;                    // 0-100
+  generationMode: GenerationMode;
+  competitorImagePath: string | null;
+  styleTemplateId: string | null;
+  tasks: BatchSubTaskStatus[];
+}
+
+// 批量任务结果响应
+export interface BatchTaskResultResponse {
+  id: string;
+  status: BatchTaskStatus;
+  totalCount: number;
+  completedCount: number;
+  failedCount: number;
+  generationMode: GenerationMode;
+  competitorImagePath: string | null;
+  styleTemplateId: string | null;
+  competitorAnalysis: CompetitorAnalysis | null;
+  tasks: Array<{
+    id: string;
+    batchIndex: number;
+    status: TaskStatus;
+    productImagePath: string;
+    productName: string | null;
+    resultImages: ResultImage[];
+    generatedPrompt: string | null;
+    errorMessage: string | null;
+  }>;
+  costSummary: CostSummary | null;
+}

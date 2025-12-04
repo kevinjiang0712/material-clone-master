@@ -27,6 +27,9 @@ interface Step3InfoProps {
   onPrev: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  // 批量模式
+  isBatchMode?: boolean;
+  batchCount?: number;
 }
 
 const PET_CATEGORY_OPTIONS = [
@@ -59,6 +62,8 @@ export default function Step3Info({
   onPrev,
   onSubmit,
   isSubmitting,
+  isBatchMode = false,
+  batchCount = 1,
 }: Step3InfoProps) {
   const [isInfoExpanded, setIsInfoExpanded] = useState(false);
 
@@ -67,39 +72,58 @@ export default function Step3Info({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
+      <h2 className="text-xl font-semibold text-white mb-2 flex items-center gap-2">
+        <span className="w-1 h-6 bg-cyan-500 rounded-full"></span>
+        完善信息
+      </h2>
+
       {/* 已选内容预览 */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          已选内容
-        </h2>
+      <div className="bg-slate-800/30 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-slate-200">
+            已选内容
+          </h2>
+          {isBatchMode && (
+            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-sm rounded-full font-medium">
+              批量模式 · {batchCount} 张
+            </span>
+          )}
+        </div>
         <div className="flex gap-4">
           {/* 实拍图预览 */}
           <div className="flex-1">
-            <p className="text-sm text-gray-500 mb-2">产品实拍图</p>
-            <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 relative">
+            <p className="text-sm text-slate-400 mb-2">
+              {isBatchMode ? `产品实拍图 (${batchCount}张)` : '产品实拍图'}
+            </p>
+            <div className="aspect-square rounded-lg overflow-hidden bg-slate-900 border border-slate-700 relative group">
               <Image
                 src={productImagePath}
                 alt="产品实拍图"
                 fill
-                className="object-cover"
+                className="object-cover transition-transform duration-500 group-hover:scale-110"
                 sizes="(max-width: 768px) 50vw, 200px"
               />
+              {isBatchMode && (
+                <div className="absolute top-2 left-2 px-2 py-1 bg-blue-500 text-white text-xs rounded-full font-medium">
+                  +{batchCount - 1}
+                </div>
+              )}
             </div>
           </div>
 
           {/* 风格预览 */}
           <div className="flex-1">
-            <p className="text-sm text-gray-500 mb-2">
+            <p className="text-sm text-slate-400 mb-2">
               {generationMode === 'competitor' ? '竞品参考图' : '风格模板'}
             </p>
-            <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 relative">
+            <div className="aspect-square rounded-lg overflow-hidden bg-slate-900 border border-slate-700 relative group">
               {generationMode === 'competitor' && competitorImagePath ? (
                 <Image
                   src={competitorImagePath}
                   alt="竞品参考图"
                   fill
-                  className="object-cover"
+                  className="object-cover transition-transform duration-500 group-hover:scale-110"
                   sizes="(max-width: 768px) 50vw, 200px"
                 />
               ) : generationMode === 'template' && selectedTemplateThumbnail ? (
@@ -107,15 +131,15 @@ export default function Step3Info({
                   src={selectedTemplateThumbnail}
                   alt={selectedTemplateName || '风格模板'}
                   fill
-                  className="object-cover"
+                  className="object-cover transition-transform duration-500 group-hover:scale-110"
                   sizes="(max-width: 768px) 50vw, 200px"
                 />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-purple-50">
-                  <svg className="w-12 h-12 text-purple-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-800/50">
+                  <svg className="w-12 h-12 text-slate-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                   </svg>
-                  <p className="text-sm font-medium text-purple-600">{selectedTemplateName}</p>
+                  <p className="text-sm font-medium text-slate-500">{selectedTemplateName}</p>
                 </div>
               )}
             </div>
@@ -124,19 +148,19 @@ export default function Step3Info({
       </div>
 
       {/* 商品信息（选填） */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
+      <div className="bg-slate-800/30 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm transition-all hover:border-slate-600">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-semibold text-gray-800">
+            <h2 className="text-lg font-semibold text-slate-200">
               商品信息
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-slate-500 mt-1">
               选填，可直接跳过开始生成
             </p>
           </div>
           <button
             onClick={() => setIsInfoExpanded(!isInfoExpanded)}
-            className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
+            className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
           >
             {isInfoExpanded ? '收起' : '展开'}
             <svg
@@ -202,11 +226,11 @@ export default function Step3Info({
       </div>
 
       {/* 模型选择 */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">
+      <div className="bg-slate-800/30 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm">
+        <h2 className="text-lg font-semibold text-slate-200 mb-2">
           选择生成模型
         </h2>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-slate-500 mb-4">
           可多选，将并行生成多张图片进行对比
         </p>
         <ModelSelectorInline
@@ -218,11 +242,11 @@ export default function Step3Info({
       </div>
 
       {/* 导航按钮 */}
-      <div className="flex justify-between">
+      <div className="flex justify-between pt-4">
         <button
           onClick={onPrev}
           disabled={isSubmitting}
-          className="px-6 py-3 rounded-xl font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-all flex items-center gap-2"
+          className="px-6 py-3 rounded-xl font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-all flex items-center gap-2 border border-transparent hover:border-slate-600"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -233,11 +257,11 @@ export default function Step3Info({
           onClick={onSubmit}
           disabled={isSubmitting}
           className={`
-            px-8 py-3 rounded-xl font-medium transition-all
+            px-8 py-3 rounded-xl font-medium transition-all duration-300
             flex items-center gap-2
             ${isSubmitting
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 shadow-lg shadow-purple-200'
+              ? 'bg-slate-700 text-slate-500 cursor-not-allowed border border-slate-600'
+              : 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-500 hover:to-cyan-500 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5'
             }
           `}
         >
@@ -247,11 +271,11 @@ export default function Step3Info({
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              生成中...
+              {isBatchMode ? '创建批量任务...' : '生成中...'}
             </>
           ) : (
             <>
-              开始生成
+              {isBatchMode ? `批量生成 (${batchCount}张)` : '开始生成'}
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
@@ -299,14 +323,14 @@ function ModelSelectorInline({
 
   return (
     <div className="space-y-4">
-      <div className="text-xs text-gray-400 text-right">
+      <div className="text-xs text-slate-500 text-right">
         已选 {selectedModels.length}/{MAX_SELECTED_MODELS}
       </div>
 
       {/* 即梦模型 */}
       <div>
-        <div className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+        <div className="text-xs font-medium text-slate-400 mb-2 flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_5px_rgba(249,115,22,0.5)]"></span>
           即梦 (Doubao)
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -323,8 +347,8 @@ function ModelSelectorInline({
 
         {/* 即梦分辨率选择器 */}
         {hasJimenSelected && onResolutionChange && (
-          <div className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-100">
-            <div className="text-xs font-medium text-gray-600 mb-2">输出分辨率</div>
+          <div className="mt-3 p-3 bg-orange-500/10 rounded-lg border border-orange-500/20">
+            <div className="text-xs font-medium text-orange-300 mb-2">输出分辨率</div>
             <div className="flex gap-2 flex-wrap">
               {JIMEN_RESOLUTION_OPTIONS.map(option => (
                 <button
@@ -333,14 +357,14 @@ function ModelSelectorInline({
                   onClick={() => onResolutionChange(option.id)}
                   className={`px-3 py-1.5 text-xs rounded-md border transition-all
                     ${jimenResolution === option.id
-                      ? 'border-orange-400 bg-orange-100 text-orange-700 font-medium'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50'
+                      ? 'border-orange-500 bg-orange-500/20 text-orange-300 font-medium shadow-[0_0_10px_rgba(249,115,22,0.2)]'
+                      : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-orange-500/30 hover:bg-orange-500/5'
                     }`}
                 >
                   <span className="font-medium">{option.name}</span>
-                  <span className="text-gray-400 ml-1">({option.size}×{option.size})</span>
+                  <span className="text-slate-500 ml-1">({option.size}×{option.size})</span>
                   {option.id === '2k' && (
-                    <span className="ml-1 text-orange-500">推荐</span>
+                    <span className="ml-1 text-orange-400">推荐</span>
                   )}
                 </button>
               ))}
@@ -351,8 +375,8 @@ function ModelSelectorInline({
 
       {/* OpenRouter 模型 */}
       <div>
-        <div className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+        <div className="text-xs font-medium text-slate-400 mb-2 flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.5)]"></span>
           OpenRouter
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -385,22 +409,35 @@ interface ModelCheckboxCompactProps {
 function ModelCheckboxCompact({ model, checked, disabled, onChange }: ModelCheckboxCompactProps) {
   return (
     <label
-      className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer
+      className={`flex items-center gap-2 p-2 rounded-lg border transition-all cursor-pointer group
         ${checked
-          ? 'border-purple-300 bg-purple-50'
+          ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_10px_rgba(59,130,246,0.1)]'
           : disabled
-            ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
-            : 'border-gray-200 hover:border-purple-200'
+            ? 'border-slate-800 bg-slate-900 opacity-50 cursor-not-allowed'
+            : 'border-slate-700 bg-slate-800/50 hover:border-blue-400/50 hover:bg-slate-800'
         }`}
     >
+      <div className={`
+        w-4 h-4 rounded border flex items-center justify-center transition-all
+        ${checked ? 'bg-blue-500 border-blue-500' : 'border-slate-500 group-hover:border-blue-400'}
+      `}>
+        {checked && (
+          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </div>
+      <span className={`text-sm truncate transition-colors ${checked ? 'text-blue-100' : 'text-slate-400 group-hover:text-slate-200'}`}>
+        {model.displayName}
+      </span>
+      {/* 隐藏原生 checkbox */}
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
         onChange={onChange}
-        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+        className="hidden"
       />
-      <span className="text-sm text-gray-700 truncate">{model.displayName}</span>
     </label>
   );
 }

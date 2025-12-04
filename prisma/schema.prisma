@@ -8,55 +8,87 @@ datasource db {
 }
 
 model Task {
-  id                  String    @id @default(uuid())
-  status              String    @default("pending")
-  currentStep         Int       @default(0)
-  totalSteps          Int       @default(4)
-  failedStep          Int?      // 失败时的步骤号，用于断点重试
+  id                  String        @id @default(uuid())
+  status              String        @default("pending")
+  currentStep         Int           @default(0)
+  totalSteps          Int           @default(4)
+  failedStep          Int?
   competitorImagePath String?
   productImagePath    String?
-  resultImagePath     String?   // 保留兼容旧数据
-  resultImages        String?   // JSON 数组: [{provider, model, path, error?}]
-  selectedImageModels String?   // JSON 数组: ["jimen:doubao-seedream-4-0-250828", "openrouter:google/gemini-2.5-flash-image"]
-  jimenResolution     String?   // 即梦输出分辨率: "1k" | "2k" | "4k"
-  competitorAnalysis  String?   // 合并版式+风格分析
+  resultImagePath     String?
+  competitorAnalysis  String?
   contentAnalysis     String?
   generatedPrompt     String?
-  usedModels          String?   // JSON: 每个步骤使用的模型名称
+  usedModels          String?
   errorMessage        String?
-  totalCost           Float?    // 总成本（美元）
-  // 生成模式
-  generationMode      String?   // 'competitor' | 'template'，null 视为 competitor
-  styleTemplateId     String?   // 模板模式使用的模板 ID
-  // 竞品基础信息
-  competitorName      String?   // 竞品名称
-  competitorCategory  String?   // 竞品类目
-  // 商品基础信息
-  productName         String?   // 商品名称
-  productCategory     String?   // 商品类目
-  sellingPoints       String?   // 核心卖点
-  targetAudience      String?   // 目标人群
-  brandTone           String?   // 品牌调性 (JSON 数组)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  totalCost           Float?
+  brandTone           String?
+  productCategory     String?
+  productName         String?
+  sellingPoints       String?
+  targetAudience      String?
+  competitorCategory  String?
+  competitorName      String?
+  resultImages        String?
+  selectedImageModels String?
+  generationMode      String?
+  styleTemplateId     String?
+  jimenResolution     String?
+  // 批量任务关联
+  batchTaskId         String?
+  batchTask           BatchTask?    @relation(fields: [batchTaskId], references: [id], onDelete: Cascade)
+  batchIndex          Int?
+  apiCalls            ApiCall[]
+  imageRatings        ImageRating[]
+  stepTimings         StepTiming[]
+  taskRating          TaskRating?
+
+  @@index([batchTaskId])
+}
+
+model BatchTask {
+  id                  String    @id @default(uuid())
+  status              String    @default("pending") // pending | processing | completed | partial_failed | failed
+  totalCount          Int
+  completedCount      Int       @default(0)
+  failedCount         Int       @default(0)
+
+  // 共享配置
+  generationMode      String                         // competitor | template
+  competitorImagePath String?
+  styleTemplateId     String?
+  competitorName      String?
+  competitorCategory  String?
+  productInfo         String?                        // JSON: ProductInfo (不含 productName)
+  selectedImageModels String                         // JSON: string[]
+  jimenResolution     String    @default("2k")
+
+  // 共享分析（竞品分析只做一次）
+  competitorAnalysis  String?                        // JSON
+
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
-  apiCalls            ApiCall[]
-  stepTimings         StepTiming[]
-  taskRating          TaskRating?    // 整体任务评分
-  imageRatings        ImageRating[]  // 单张图片评分列表
+
+  tasks               Task[]
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 model ApiCall {
   id               String   @id @default(uuid())
   taskId           String
-  task             Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  step             Int      // 步骤号 1/2/4
-  generationId     String   // OpenRouter 返回的 gen-xxx
-  model            String   // 使用的模型
-  totalCost        Float    // 成本（美元）
-  tokensPrompt     Int?     // 输入 token
-  tokensCompletion Int?     // 输出 token
-  latency          Int?     // 延迟（毫秒）
+  step             Int
+  generationId     String
+  model            String
+  totalCost        Float
+  tokensPrompt     Int?
+  tokensCompletion Int?
+  latency          Int?
   createdAt        DateTime @default(now())
+  task             Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
 }
@@ -64,10 +96,10 @@ model ApiCall {
 model StepTiming {
   id        String   @id @default(uuid())
   taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  step      Int      // 步骤号 1/2/3/4
-  duration  Int      // 耗时（毫秒）
+  step      Int
+  duration  Int
   createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, step])
   @@index([taskId])
@@ -75,14 +107,14 @@ model StepTiming {
 
 model Material {
   id        String   @id @default(uuid())
-  name      String?                    // 素材名称（可选）
-  path      String                     // 图片路径 /uploads/material/xxx.jpg
-  type      String   @default("product") // 素材类型：product/competitor
-  source    String   @default("upload")  // 来源：upload(直接上传)/task(任务上传)
-  taskId    String?                    // 关联的任务ID（如果来自任务）
-  fileSize  Int?                       // 文件大小（字节）
-  width     Int?                       // 图片宽度
-  height    Int?                       // 图片高度
+  name      String?
+  path      String
+  type      String   @default("product")
+  source    String   @default("upload")
+  taskId    String?
+  fileSize  Int?
+  width     Int?
+  height    Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -93,23 +125,15 @@ model Material {
 model TaskRating {
   id              String   @id @default(uuid())
   taskId          String   @unique
-  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  // 整体评分
-  overallRating   Int      // 1-5 星
-
-  // 多维度评分（各1-5星，可选）
-  imageQuality    Int?     // 图像质量
-  styleMatch      Int?     // 风格匹配度
-  productFidelity Int?     // 商品还原度
-  creativity      Int?     // 创意性
-
-  // 文字反馈
-  comment         String?  // 评论或改进建议
-
-  // 元数据
+  overallRating   Int
+  imageQuality    Int?
+  styleMatch      Int?
+  productFidelity Int?
+  creativity      Int?
+  comment         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
   @@index([overallRating])
@@ -119,30 +143,20 @@ model TaskRating {
 model ImageRating {
   id              String   @id @default(uuid())
   taskId          String
-  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  // 关联图片信息
-  imagePath       String   // 图片路径（resultImages 中的 path）
-  modelId         String   // 模型标识（如 "jimen:doubao-seedream-4-0-250828"）
-  provider        String   // "openrouter" | "jimen"
-
-  // 整体评分
-  overallRating   Int      // 1-5 星
-
-  // 多维度评分（可选）
-  imageQuality    Int?     // 图像质量
-  styleMatch      Int?     // 风格匹配度
-  productFidelity Int?     // 商品还原度
-  creativity      Int?     // 创意性
-
-  // 文字反馈
-  comment         String?  // 评论或改进建议
-
-  // 元数据
+  imagePath       String
+  modelId         String
+  provider        String
+  overallRating   Int
+  imageQuality    Int?
+  styleMatch      Int?
+  productFidelity Int?
+  creativity      Int?
+  comment         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
-  @@unique([taskId, imagePath])  // 每张图片只能评分一次
+  @@unique([taskId, imagePath])
   @@index([taskId])
   @@index([modelId])
   @@index([overallRating])

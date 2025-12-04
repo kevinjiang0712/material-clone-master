@@ -92,6 +92,16 @@ async function recordStepTiming(taskId: string, step: number, duration: number):
 }
 
 /**
+ * 处理任务的配置选项
+ */
+export interface ProcessTaskOptions {
+  /** 预加载的竞品分析结果（批量任务时使用，避免重复分析） */
+  preloadedCompetitorAnalysis?: CompetitorAnalysis;
+  /** 是否为批量任务的子任务（影响日志和状态更新） */
+  isBatchSubTask?: boolean;
+}
+
+/**
  * 处理任务的主函数
  *
  * 执行步骤：
@@ -102,8 +112,13 @@ async function recordStepTiming(taskId: string, step: number, duration: number):
  *
  * @param taskId - 任务 ID
  * @param startFromStep - 从第几步开始执行（默认为 1，用于断点重试）
+ * @param options - 处理配置选项
  */
-export async function processTask(taskId: string, startFromStep: number = 1): Promise<void> {
+export async function processTask(
+  taskId: string,
+  startFromStep: number = 1,
+  options?: ProcessTaskOptions
+): Promise<void> {
   console.log(`[Task ${taskId}] Starting processing from step ${startFromStep}...`);
 
   // 当前执行的步骤号，用于记录失败步骤
@@ -141,10 +156,18 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
     let productBase64: string | null = null;
 
     // 如果从步骤 2 及以后开始，需要加载步骤 1 的结果（仅竞品模式需要）
-    if (startFromStep > 1 && !isTemplateMode) {
-      competitorAnalysis = parseJson<CompetitorAnalysis>(task.competitorAnalysis);
-      if (!competitorAnalysis) {
-        throw new Error('Cannot resume: competitorAnalysis not found');
+    // 批量任务时可以使用预加载的竞品分析结果
+    if (!isTemplateMode) {
+      if (options?.preloadedCompetitorAnalysis) {
+        // 使用预加载的竞品分析（批量任务共享）
+        competitorAnalysis = options.preloadedCompetitorAnalysis;
+        console.log(`[Task ${taskId}] Using preloaded competitor analysis from batch task`);
+      } else if (startFromStep > 1) {
+        // 从数据库加载
+        competitorAnalysis = parseJson<CompetitorAnalysis>(task.competitorAnalysis);
+        if (!competitorAnalysis) {
+          throw new Error('Cannot resume: competitorAnalysis not found');
+        }
       }
     }
 
@@ -188,7 +211,9 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       // Step 1: 获取风格分析数据（仅竞品模式需要）
       // - 竞品模式：分析竞品图（版式+风格）+ 百度 OCR
       // - 模板模式：跳过此步骤，直接进入步骤2
-      if (startFromStep <= 1 && !isTemplateMode) {
+      // - 批量任务：如果有预加载的分析结果，跳过此步骤
+      const hasPreloadedAnalysis = !!options?.preloadedCompetitorAnalysis;
+      if (startFromStep <= 1 && !isTemplateMode && !hasPreloadedAnalysis) {
         analysisPromises.push((async () => {
           currentExecutingStep = 1;
           const step1Start = Date.now();
@@ -234,6 +259,9 @@ export async function processTask(taskId: string, startFromStep: number = 1): Pr
       } else if (startFromStep <= 1 && isTemplateMode) {
         // 模板模式：跳过步骤1，直接记录日志
         console.log(`[Task ${taskId}] Step 1: Skipped (template mode - ${task.styleTemplateId})`);
+      } else if (hasPreloadedAnalysis) {
+        // 批量任务：使用预加载的分析结果，跳过步骤1
+        console.log(`[Task ${taskId}] Step 1: Skipped (using preloaded analysis from batch task)`);
       }
 
       // Step 2: 分析实拍图内容

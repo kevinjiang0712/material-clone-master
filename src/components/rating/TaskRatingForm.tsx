@@ -20,7 +20,6 @@ export default function TaskRatingForm({
   const [creativity, setCreativity] = useState(existingRating?.creativity || 0);
   const [comment, setComment] = useState(existingRating?.comment || '');
   const [showDetails, setShowDetails] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
   // 自动保存逻辑（debounce 1秒）
@@ -32,12 +31,12 @@ export default function TaskRatingForm({
     }, 1000);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overallRating, imageQuality, styleMatch, productFidelity, creativity, comment]);
 
   const handleSave = async () => {
     if (overallRating === 0) return;
 
-    setIsSaving(true);
     setSaveStatus('saving');
 
     try {
@@ -67,7 +66,7 @@ export default function TaskRatingForm({
       setSaveStatus('error');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } finally {
-      setIsSaving(false);
+      // saving complete
     }
   };
 

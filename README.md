@@ -7,6 +7,7 @@
 - **双模式生成**:
   - 竞品参考模式：上传竞品图作为风格参考
   - 风格模板模式：选择预设风格模板快速生成
+- **批量生图**: 从素材库多选素材（最多 10 张），批量生成同风格产品图，共享竞品分析结果
 - **竞品图分析**: 自动提取竞品图的版式布局、视觉风格、文案卖点
 - **OCR 辅助分析**: 百度 OCR 高精度识别 + 大模型理解，精准提取文案信息
 - **实拍图识别**: 识别产品形状、材质、朝向等特征
@@ -124,6 +125,10 @@ src/
 | `/api/materials/[id]` | DELETE | 删除素材 |
 | `/api/ratings/task` | GET/POST | 任务评分 |
 | `/api/ratings/image` | GET/POST | 图片评分 |
+| `/api/batch/create` | POST | 创建批量任务 |
+| `/api/batch/[batchId]/status` | GET | 获取批量任务状态 |
+| `/api/batch/[batchId]/result` | GET | 获取批量任务结果 |
+| `/api/batch/[batchId]/retry` | POST | 重试失败的子任务 |
 
 ## 许可证
 

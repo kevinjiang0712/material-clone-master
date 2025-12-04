@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.8.0] - 2024-12-05
+
+### Added
+
+- **批量生图功能**:
+  - 支持从素材库多选素材（最多 10 张）进行批量生成
+  - 新增 `BatchTask` 数据表管理批量任务
+  - 新增批量处理服务 `batchProcessor.ts`，支持并发控制（最多 3 个子任务并行）
+  - 新增批量任务 API 端点：
+    - `POST /api/batch/create` - 创建批量任务
+    - `GET /api/batch/[batchId]/status` - 查询批量任务状态
+    - `GET /api/batch/[batchId]/result` - 获取批量任务结果
+    - `POST /api/batch/[batchId]/retry` - 重试失败的子任务
+  - 新增批量结果页面 `/batch/[batchId]`，展示总进度和子任务详情
+  - 共享竞品分析：批量任务中所有子任务共享同一份竞品分析结果，避免重复 API 调用
+
+- **素材库多选模式**:
+  - `MaterialLibrary` 组件新增多选支持
+  - 显示选中序号和已选数量
+  - 批量确认选择功能
+
+- **向导组件增强**:
+  - `Step1Upload` 支持展示多个已选素材
+  - `Step3Info` 批量模式 UI 提示（显示批量模式标记和数量）
+  - 首页状态管理支持批量任务提交
+
+### Changed
+
+- 首页向导流程优化，支持单任务和批量任务两种模式
+- `taskProcessor.ts` 支持注入预加载的竞品分析结果
+- 任务创建流程根据素材数量自动选择单任务或批量任务模式
+
+### Database
+
+- 新增 `BatchTask` 表：
+  - `id`, `status`, `totalCount`, `completedCount`, `failedCount`
+  - `generationMode`, `competitorImagePath`, `styleTemplateId`
+  - `competitorAnalysis` - 共享的竞品分析结果
+  - `productInfo`, `selectedImageModels`, `jimenResolution`
+- `Task` 表新增字段：
+  - `batchTaskId` - 关联批量任务
+  - `batchIndex` - 批量任务中的序号
+
+---
+
 ## [0.7.0] - 2024-12-02
 
 ### Added

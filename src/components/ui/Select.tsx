@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { cn } from '@/lib/utils';
 
 interface SelectOption {
@@ -12,6 +13,7 @@ interface SelectProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  error?: boolean;
 }
 
 export default function Select({
@@ -21,6 +23,7 @@ export default function Select({
   onChange,
   placeholder = '请选择',
   className,
+  error,
 }: SelectProps) {
   return (
     <div className="w-full">
@@ -32,13 +35,14 @@ export default function Select({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={cn(
-          'w-full px-3 py-2 text-sm rounded-lg border border-gray-300',
-          'focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100',
-          'bg-white transition-all duration-200',
-          !value && 'text-gray-400',
-          className
-        )}
+        className={`
+          w-full px-4 py-2 rounded-lg appearance-none transition-all duration-200
+          bg-[#333] border border-[#404040] text-white
+          focus:outline-none focus:border-[#e07a5f] focus:ring-1 focus:ring-[#e07a5f]
+          disabled:opacity-50 disabled:cursor-not-allowed
+          ${error ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20' : ''}
+          ${className}
+        `}
       >
         <option value="" disabled>
           {placeholder}
