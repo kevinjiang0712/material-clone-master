@@ -1,11 +1,12 @@
 import OpenAI from 'openai';
-import { LayoutAnalysis, StyleAnalysis, ContentAnalysis, CompetitorAnalysis, CompetitorInfo, ProductInfo, ImageSceneType, PromptSynthesisResult } from '@/types';
+import { LayoutAnalysis, StyleAnalysis, ContentAnalysis, CompetitorAnalysis, CompetitorInfo, ProductInfo, ImageSceneType, PromptSynthesisResult, PromptInputData } from '@/types';
 import { API_TIMEOUT, API_RETRIES, RETRY_DELAY } from '@/lib/constants';
 
 // 带 generationId 的响应类型
 export interface AnalysisResponse<T> {
   data: T;
   generationId: string;
+  inputData?: PromptInputData;  // AI 输入数据（用于调试）
 }
 
 // 创建 OpenRouter 客户端
@@ -745,6 +746,19 @@ ${productContext}
 ### 3. 参考竞品风格
 - 背景风格、光影效果、色调氛围应参考竞品图的风格分析结果
 
+### 4. 画面布局约束（强制执行）
+⚠️ 这是电商营销图，顶部和底部必须留白用于叠加文字，这是硬性要求。
+
+【必须】
+- 顶部 25%：必须是简洁背景（纯色/渐变/虚化），绝对不能有产品或人物
+- 底部 12%：必须是简洁背景，不能有主体元素
+- 中部 63%：产品和人物只能出现在这个区域（垂直25%-88%）
+
+【禁止】
+- 禁止产品顶部超出画面25%位置
+- 禁止人物头顶超出画面30%位置
+- 禁止在顶部/底部留白区放置文字、装饰或重要细节
+
 ## 输出格式
 请严格按以下 JSON 格式输出，不要添加任何额外说明：
 {
@@ -806,7 +820,20 @@ ${productContext}
     }
 
     console.log('[OpenRouter] synthesizePromptWithAI completed successfully');
-    return { data: result, generationId };
+    return {
+      data: result,
+      generationId,
+      inputData: {
+        mode: 'competitor' as const,
+        fullPrompt: prompt,
+        layoutAnalysis: layout,
+        styleAnalysis: style,
+        copywritingAnalysis: copywriting as PromptInputData['copywritingAnalysis'],
+        contentAnalysis: content,
+        competitorInfo,
+        productInfo,
+      },
+    };
   }, 'synthesizePromptWithAI');
 }
 
@@ -930,6 +957,15 @@ ${contentAnalysis ? JSON.stringify(contentAnalysis, null, 2) : '未提供'}
     }
 
     console.log('[OpenRouter] generateUsageSceneDescription completed successfully');
-    return { data: result, generationId };
+    return {
+      data: result,
+      generationId,
+      inputData: {
+        mode: 'template',
+        fullPrompt: prompt,
+        contentAnalysis: contentAnalysis || undefined,
+        productInfo,
+      },
+    };
   }, 'generateUsageSceneDescription');
 }

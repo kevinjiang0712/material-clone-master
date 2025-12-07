@@ -225,6 +225,7 @@ export interface TaskResultResponse {
   totalCost: number | null;      // 兼容旧字段
   costSummary: CostSummary | null; // 分币种成本汇总
   stepTimings: StepTimingInfo[]; // 步骤耗时统计
+  promptInputData: PromptInputData | null; // AI 模型输入数据（调试用）
 }
 
 export interface UploadResponse {
@@ -262,6 +263,29 @@ export interface PromptSynthesisResult {
   prompt: string;                    // 生成提示词
   sceneType: ImageSceneType;         // 场景类型
   sceneDescription?: string;         // 具体的场景描述
+}
+
+// AI 提示词生成输入数据（用于调试展示）
+export interface PromptInputData {
+  mode: 'competitor' | 'template';
+
+  // 发送给 AI 的完整 prompt
+  fullPrompt?: string;
+
+  // 结构化输入数据
+  layoutAnalysis?: LayoutAnalysis;
+  styleAnalysis?: StyleAnalysis;
+  copywritingAnalysis?: CopywritingAnalysis | Record<string, unknown>;  // 支持多种格式
+  contentAnalysis?: ContentAnalysis;
+  competitorInfo?: CompetitorInfo | null;
+  productInfo?: ProductInfo | null;
+
+  // 模板模式特有
+  stylePrompt?: string;
+  usageSceneInference?: {
+    systemPrompt: string;
+    result: PromptSynthesisResult;
+  };
 }
 
 export interface CreateTaskRequest {

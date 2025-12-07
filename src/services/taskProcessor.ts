@@ -9,7 +9,7 @@ import {
   saveImageFromUrl,
   saveImageFromBase64,
 } from './imageProcessor';
-import { TaskStatus, CompetitorAnalysis, ContentAnalysis, UsedModels, CompetitorInfo, ProductInfo, ResultImage, ImageSceneType, PromptSynthesisResult } from '@/types';
+import { TaskStatus, CompetitorAnalysis, ContentAnalysis, UsedModels, CompetitorInfo, ProductInfo, ResultImage, ImageSceneType, PromptSynthesisResult, PromptInputData } from '@/types';
 import { DEFAULT_IMAGE_MODELS, AVAILABLE_IMAGE_MODELS } from '@/lib/constants';
 import { getTemplateById } from '@/lib/petStyleTemplates';
 
@@ -321,6 +321,9 @@ export async function processTask(
       console.log(`[Task ${taskId}] Step 3: Generating prompt (mode: ${generationMode})...`);
       await updateTaskStatus(taskId, 'generating_prompt', 3);
 
+      // 用于存储输入数据
+      let promptInputData: PromptInputData | undefined;
+
       if (isTemplateMode) {
         // ========== 模板模式：使用预设style_prompt + 实拍图分析 + 使用场景 ==========
         const template = getTemplateById(task.styleTemplateId || '');
@@ -332,6 +335,7 @@ export async function processTask(
 
         // 获取或推断使用场景
         let usageSceneDesc = task.usageScenario;
+        let sceneInferenceResult: { systemPrompt: string; result: PromptSynthesisResult } | undefined;
 
         // 构建商品信息（用于 AI 推断场景）
         const productInfoForScene: ProductInfo | null = task.productName
@@ -360,6 +364,14 @@ export async function processTask(
             usageSceneDesc = synthesisResult.sceneDescription || '专业电商产品展示';
             console.log(`[Task ${taskId}] AI inferred scene type: ${sceneType}`);
             console.log(`[Task ${taskId}] AI inferred usage scene: ${usageSceneDesc}`);
+
+            // 保存场景推断数据
+            if (sceneResult.inputData?.fullPrompt) {
+              sceneInferenceResult = {
+                systemPrompt: sceneResult.inputData.fullPrompt,
+                result: synthesisResult,
+              };
+            }
 
             // 记录 AI 推断场景的成本
             if (sceneResult.generationId) {
@@ -398,6 +410,15 @@ ${usageSceneDesc || '专业电商产品展示'}
 
 【绝对约束】
 产品的形状、比例、颜色、材质、透明度、图案必须与原图100%一致，在上述使用场景中展示产品。`;
+
+        // 构建模板模式的输入数据
+        promptInputData = {
+          mode: 'template',
+          stylePrompt,
+          contentAnalysis: contentAnalysis || undefined,
+          productInfo: productInfoForScene,
+          usageSceneInference: sceneInferenceResult,
+        };
 
         console.log(`[Task ${taskId}] Generated prompt (template mode):\n${generatedPrompt}`);
       } else {
@@ -450,6 +471,11 @@ ${usageSceneDesc || '专业电商产品展示'}
         console.log(`[Task ${taskId}] AI determined scene type: ${sceneType}`);
         console.log(`[Task ${taskId}] Scene description: ${sceneDescription?.substring(0, 50)}...`);
 
+        // 保存竞品模式的输入数据
+        if (promptResult.inputData) {
+          promptInputData = promptResult.inputData;
+        }
+
         // 异步记录成本（不阻塞主流程）
         if (promptResult.generationId) {
           recordApiCost(taskId, 3, promptResult.generationId).catch(err =>
@@ -462,7 +488,10 @@ ${usageSceneDesc || '专业电商产品展示'}
 
       await prisma.task.update({
         where: { id: taskId },
-        data: { generatedPrompt },
+        data: {
+          generatedPrompt,
+          promptInputData: promptInputData ? JSON.stringify(promptInputData) : null,
+        },
       });
 
       // 异步记录步骤耗时（不阻塞主流程）
@@ -543,13 +572,19 @@ ${usageSceneDesc || '专业电商产品展示'}
 
           const modelDuration = Date.now() - modelStart;
 
-          // 保存图片
+          // 构建商品信息（用于文字叠加）
+          const productInfoForOverlay = task.productName ? {
+            productName: task.productName,
+            sellingPoints: task.sellingPoints || undefined,
+          } : null;
+
+          // 保存图片（带商品文字叠加 + 品牌水印）
           let path: string;
           const suffix = modelId.replace(/[:/]/g, '_');  // 文件名安全的后缀
           if (result.imageBase64) {
-            path = await saveImageFromBase64(result.imageBase64, `${taskId}_${suffix}`);
+            path = await saveImageFromBase64(result.imageBase64, `${taskId}_${suffix}`, true, productInfoForOverlay);
           } else {
-            path = await saveImageFromUrl(result.imageUrl, `${taskId}_${suffix}`);
+            path = await saveImageFromUrl(result.imageUrl, `${taskId}_${suffix}`, true, productInfoForOverlay);
           }
 
           console.log(`[Task ${taskId}] Model ${modelId} succeeded in ${modelDuration}ms, saved to: ${path}`);

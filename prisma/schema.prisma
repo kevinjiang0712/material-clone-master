@@ -37,6 +37,7 @@ model Task {
   styleTemplateId     String?
   jimenResolution     String?
   usageScenario       String?
+  promptInputData     String?                            // JSON: AI 模型输入数据（用于调试）
   // 批量任务关联
   batchTaskId         String?
   batchTask           BatchTask?    @relation(fields: [batchTaskId], references: [id], onDelete: Cascade)

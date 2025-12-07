@@ -10,7 +10,7 @@ import ImageHistorySection from '@/components/ImageHistorySection';
 import StepAnalysisCard from '@/components/StepAnalysisCard';
 import { Button } from '@/components/ui/Button';
 import RatingPanel from '@/components/rating/RatingPanel';
-import { TaskStatusResponse, TaskResultResponse, ApiCallInfo, ResultImage, StepTimingInfo } from '@/types';
+import { TaskStatusResponse, TaskResultResponse, ApiCallInfo, ResultImage, StepTimingInfo, PromptInputData } from '@/types';
 import { POLLING_INTERVAL, AVAILABLE_IMAGE_MODELS, MAX_IMAGES_PER_TASK } from '@/lib/constants';
 import { getTemplateById } from '@/lib/petStyleTemplates';
 
@@ -270,11 +270,13 @@ function PromptSection({
   prompt,
   modelName,
   duration,
+  inputData,
 }: {
   stepNumber: number;
   prompt: string;
   modelName?: string;
   duration?: number | null;
+  inputData?: PromptInputData | null;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -322,11 +324,120 @@ function PromptSection({
           />
         </svg>
       </button>
-      {isExpanded && prompt && (
+      {isExpanded && (
         <div className="px-4 pb-4 border-t border-gray-100">
-          <pre className="mt-4 text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg overflow-x-auto font-mono">
-            {prompt}
-          </pre>
+          {/* AI 输出 */}
+          {prompt && (
+            <div className="mt-4">
+              <h5 className="text-sm font-medium text-gray-700 mb-2">【AI 输出】生成的 Prompt</h5>
+              <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg overflow-x-auto font-mono">
+                {prompt}
+              </pre>
+            </div>
+          )}
+
+          {/* 输入数据调试区域 */}
+          {inputData && (
+            <>
+              <div className="border-t border-gray-200 my-4 pt-4">
+                <h5 className="text-sm font-medium text-gray-500 mb-4">以下为 AI 输入数据（调试用）- 模式: {inputData.mode === 'competitor' ? '竞品模式' : '模板模式'}</h5>
+              </div>
+
+              {/* 完整 AI Prompt */}
+              {inputData.fullPrompt && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">【完整 AI Prompt】</h5>
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-blue-50 p-4 rounded-lg max-h-96 overflow-y-auto font-mono">
+                    {inputData.fullPrompt}
+                  </pre>
+                </div>
+              )}
+
+              {/* 版式分析 */}
+              {inputData.layoutAnalysis && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">【版式分析】</h5>
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg overflow-x-auto font-mono">
+                    {JSON.stringify(inputData.layoutAnalysis, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* 风格分析 */}
+              {inputData.styleAnalysis && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">【风格分析】</h5>
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg overflow-x-auto font-mono">
+                    {JSON.stringify(inputData.styleAnalysis, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* 文案分析 */}
+              {inputData.copywritingAnalysis && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">【文案分析】</h5>
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg overflow-x-auto font-mono">
+                    {JSON.stringify(inputData.copywritingAnalysis, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* 产品分析 */}
+              {inputData.contentAnalysis && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">【产品分析】</h5>
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg overflow-x-auto font-mono">
+                    {JSON.stringify(inputData.contentAnalysis, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* 商品信息 */}
+              {inputData.productInfo && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">【商品信息】</h5>
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg overflow-x-auto font-mono">
+                    {JSON.stringify(inputData.productInfo, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* 竞品信息 */}
+              {inputData.competitorInfo && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">【竞品信息】</h5>
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg overflow-x-auto font-mono">
+                    {JSON.stringify(inputData.competitorInfo, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {/* 模板模式：风格预设 */}
+              {inputData.stylePrompt && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">【模板风格预设】</h5>
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg overflow-x-auto font-mono">
+                    {inputData.stylePrompt}
+                  </pre>
+                </div>
+              )}
+
+              {/* 模板模式：场景推断 */}
+              {inputData.usageSceneInference && (
+                <div className="mb-4">
+                  <h5 className="text-sm font-medium text-gray-700 mb-2">【AI 场景推断 Prompt】</h5>
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-green-50 p-4 rounded-lg max-h-96 overflow-y-auto font-mono">
+                    {inputData.usageSceneInference.systemPrompt}
+                  </pre>
+                  <h5 className="text-sm font-medium text-gray-700 mt-4 mb-2">【AI 场景推断结果】</h5>
+                  <pre className="text-sm text-gray-600 whitespace-pre-wrap bg-green-50 p-4 rounded-lg overflow-x-auto font-mono">
+                    {JSON.stringify(inputData.usageSceneInference.result, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </>
@@ -782,6 +893,7 @@ export default function ResultPage() {
                         prompt={result.generatedPrompt}
                         modelName={result.usedModels?.step3_prompt}
                         duration={getStepDuration(3)}
+                        inputData={result.promptInputData}
                       />
                     </div>
                   )}
@@ -1103,6 +1215,7 @@ export default function ResultPage() {
                     prompt={result.generatedPrompt}
                     modelName={result.usedModels?.step3_prompt}
                     duration={getStepDuration(3)}
+                    inputData={result.promptInputData}
                   />
                 </div>
 

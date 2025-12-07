@@ -25,6 +25,7 @@ export async function GET(
         competitorAnalysis: true,
         contentAnalysis: true,
         usedModels: true,
+        promptInputData: true,
         errorMessage: true,
         totalCost: true,
         apiCalls: {
@@ -116,6 +117,7 @@ export async function GET(
       totalCost: task.totalCost,
       costSummary: calculateCostSummary(),
       stepTimings: task.stepTimings as StepTimingInfo[],
+      promptInputData: parseJson(task.promptInputData),
     };
 
     return NextResponse.json(response);
