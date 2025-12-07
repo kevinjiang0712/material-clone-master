@@ -2,6 +2,7 @@ import { sleep } from '@/lib/utils';
 import { fetchWithRetry } from '@/lib/fetchWithTimeout';
 import { GEMINI_MODELS } from '@/lib/constants';
 import * as jimenImageGenerator from './jimenImageGenerator';
+import { ImageSceneType } from '@/types';
 
 /**
  * 图像生成服务
@@ -298,6 +299,8 @@ export function isImageGeneratorConfigured(): boolean {
  * @param productImagePath - 产品图路径（Mock 模式用）
  * @param jimenResolution - 即梦模型输出分辨率: "1k" | "2k" | "4k"
  * @param styleImageBase64 - 风格参考图的 base64 编码（模板图或竞品图）
+ * @param sceneType - 场景类型：product_display / human_usage / pet_interaction / environment
+ * @param sceneDescription - 具体的场景描述
  * @returns 生成结果
  */
 export async function generateImageWithModel(
@@ -306,7 +309,9 @@ export async function generateImageWithModel(
   prompt: string,
   productImagePath: string,
   jimenResolution?: string,
-  styleImageBase64?: string
+  styleImageBase64?: string,
+  sceneType?: ImageSceneType,
+  sceneDescription?: string
 ): Promise<ImageGenerationResponse> {
   // 检查是否使用 Mock
   const useMock = process.env.USE_MOCK_GENERATION === 'true';
@@ -323,6 +328,9 @@ export async function generateImageWithModel(
   if (styleImageBase64) {
     console.log(`[ImageGenerator] Dual-image mode: product + style reference`);
   }
+  if (sceneType) {
+    console.log(`[ImageGenerator] Scene type: ${sceneType}`);
+  }
 
   if (provider === 'jimen') {
     return jimenImageGenerator.generateImage({
@@ -330,6 +338,9 @@ export async function generateImageWithModel(
       styleImageBase64,
       prompt,
       resolutionId: jimenResolution,
+      modelId: model,  // 传入具体的模型ID（如 doubao-seedream-4-5-251128）
+      sceneType,       // 传入场景类型
+      sceneDescription, // 传入场景描述
     });
   }
 

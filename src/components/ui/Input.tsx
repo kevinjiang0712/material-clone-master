@@ -1,58 +1,22 @@
-import { cn } from '@/lib/utils';
+import * as React from "react"
 
-interface InputProps {
-  label?: string;
-  placeholder?: string;
-  value: string;
-  onChange: (value: string) => void;
-  required?: boolean;
-  multiline?: boolean;
-  rows?: number;
-  className?: string;
-}
+import { cn } from "@/lib/utils"
 
-export default function Input({
-  label,
-  placeholder,
-  value,
-  onChange,
-  required = false,
-  multiline = false,
-  rows = 3,
-  className,
-}: InputProps) {
-  const baseClasses = cn(
-    'w-full px-3 py-2 text-sm rounded-lg border border-gray-300',
-    'focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100',
-    'placeholder:text-gray-400 transition-all duration-200',
-    className
-  );
+const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
+  ({ className, type, ...props }, ref) => {
+    return (
+      <input
+        type={type}
+        className={cn(
+          "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Input.displayName = "Input"
 
-  return (
-    <div className="w-full">
-      {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
-      )}
-      {multiline ? (
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          rows={rows}
-          className={cn(baseClasses, 'resize-none')}
-        />
-      ) : (
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className={baseClasses}
-        />
-      )}
-    </div>
-  );
-}
+export { Input }

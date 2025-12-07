@@ -8,7 +8,7 @@ import ProgressTracker from '@/components/ProgressTracker';
 import ImageComparison from '@/components/ImageComparison';
 import ImageHistorySection from '@/components/ImageHistorySection';
 import StepAnalysisCard from '@/components/StepAnalysisCard';
-import Button from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
 import RatingPanel from '@/components/rating/RatingPanel';
 import { TaskStatusResponse, TaskResultResponse, ApiCallInfo, ResultImage, StepTimingInfo } from '@/types';
 import { POLLING_INTERVAL, AVAILABLE_IMAGE_MODELS, MAX_IMAGES_PER_TASK } from '@/lib/constants';

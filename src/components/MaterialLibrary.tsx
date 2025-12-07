@@ -285,20 +285,20 @@ export default function MaterialLibrary({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col m-4">
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col m-4 border border-card-border">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-card-border">
+          <h2 className="text-xl font-semibold text-foreground">
             {type === 'product' ? '选择实拍图' : '选择竞品图'}
             {multiSelect && (
-              <span className="ml-2 text-sm font-normal text-gray-500">
+              <span className="ml-2 text-sm font-normal text-muted">
                 （可多选，最多 {maxSelect} 张）
               </span>
             )}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-muted/20 rounded-full transition-colors text-muted hover:text-foreground"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -307,8 +307,8 @@ export default function MaterialLibrary({
         </div>
 
         {/* Upload Button */}
-        <div className="px-6 py-3 border-b bg-gray-50">
-          <label className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg cursor-pointer transition-colors">
+        <div className="px-6 py-3 border-b border-card-border bg-background/50">
+          <label className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg cursor-pointer transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -326,10 +326,10 @@ export default function MaterialLibrary({
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="flex items-center justify-center h-48">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : materials.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-500">
+            <div className="flex flex-col items-center justify-center h-48 text-muted">
               <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
@@ -345,19 +345,20 @@ export default function MaterialLibrary({
                   <div
                     key={material.id}
                     onClick={() => handleMaterialClick(material)}
-                    className={`group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                      isSelected
-                        ? 'border-blue-500 ring-2 ring-blue-200'
-                        : 'border-transparent hover:border-gray-300'
-                    }`}
+                    className={`group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${isSelected
+                        ? 'border-primary ring-2 ring-primary/30'
+                        : 'border-transparent hover:border-muted'
+                      }`}
                   >
-                    <SafeImage
-                      src={material.path}
-                      alt={material.name || '素材'}
-                      fill
-                      sizes="(max-width: 768px) 33vw, 150px"
-                      className="object-cover"
-                    />
+                    <div className="relative w-full h-full">
+                      <SafeImage
+                        src={material.path}
+                        alt={material.name || '素材'}
+                        fill
+                        sizes="(max-width: 768px) 33vw, 150px"
+                        className="object-cover"
+                      />
+                    </div>
                     {/* 商品名称显示 */}
                     {material.name && (
                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
@@ -366,7 +367,7 @@ export default function MaterialLibrary({
                     )}
                     {/* 选中标记 */}
                     {isSelected && (
-                      <div className="absolute top-1 right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                      <div className="absolute top-1 right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
                         {multiSelect ? (
                           <span className="text-white text-xs font-bold">
                             {selectionIndex + 1}
@@ -383,7 +384,7 @@ export default function MaterialLibrary({
                       {/* 编辑按钮 */}
                       <button
                         onClick={(e) => openEditModal(material, e)}
-                        className="w-6 h-6 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center"
+                        className="w-6 h-6 bg-primary hover:bg-primary/90 rounded-full flex items-center justify-center"
                         title="编辑商品名称"
                       >
                         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -393,7 +394,7 @@ export default function MaterialLibrary({
                       {/* 删除按钮 */}
                       <button
                         onClick={(e) => handleDelete(material.id, e)}
-                        className="w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center"
+                        className="w-6 h-6 bg-danger hover:bg-danger/90 rounded-full flex items-center justify-center"
                         title="删除素材"
                       >
                         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -410,21 +411,21 @@ export default function MaterialLibrary({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 px-6 py-3 border-t">
+          <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-card-border">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+              className="px-3 py-1 rounded border border-card-border text-muted disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted/20 hover:text-foreground"
             >
               上一页
             </button>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-muted">
               {page} / {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+              className="px-3 py-1 rounded border border-card-border text-muted disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted/20 hover:text-foreground"
             >
               下一页
             </button>
@@ -432,13 +433,13 @@ export default function MaterialLibrary({
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-card-border">
           {/* 左侧：多选模式显示已选数量 */}
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-muted">
             {multiSelect && (
               <span>
-                已选 <span className="font-semibold text-blue-600">{selectedMaterials.length}</span> 张
-                <span className="text-gray-400">（最多 {maxSelect} 张）</span>
+                已选 <span className="font-semibold text-primary">{selectedMaterials.length}</span> 张
+                <span className="text-muted">（最多 {maxSelect} 张）</span>
               </span>
             )}
           </div>
@@ -447,7 +448,7 @@ export default function MaterialLibrary({
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-muted hover:text-foreground hover:bg-muted/20 rounded-lg transition-colors"
             >
               取消
             </button>
@@ -455,7 +456,7 @@ export default function MaterialLibrary({
               <button
                 onClick={handleMultiConfirm}
                 disabled={selectedMaterials.length === 0}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 确认选择 ({selectedMaterials.length})
               </button>
@@ -463,7 +464,7 @@ export default function MaterialLibrary({
               <button
                 onClick={handleConfirm}
                 disabled={!selectedId}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 确认选择
               </button>
@@ -475,13 +476,13 @@ export default function MaterialLibrary({
       {/* Edit Modal */}
       {editModalOpen && editingMaterial && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-md m-4 border border-card-border">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">编辑商品名称</h3>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-card-border">
+              <h3 className="text-lg font-semibold text-foreground">编辑商品名称</h3>
               <button
                 onClick={closeEditModal}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-2 hover:bg-muted/20 rounded-full transition-colors text-muted hover:text-foreground"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -492,7 +493,7 @@ export default function MaterialLibrary({
             {/* Content */}
             <div className="p-6 space-y-4">
               {/* Preview */}
-              <div className="relative aspect-square w-full max-w-[200px] mx-auto rounded-lg overflow-hidden bg-gray-100">
+              <div className="relative aspect-square w-full max-w-[200px] mx-auto rounded-lg overflow-hidden bg-background">
                 <SafeImage
                   src={editingMaterial.path}
                   alt={editingMaterial.name || '素材'}
@@ -504,7 +505,7 @@ export default function MaterialLibrary({
 
               {/* Name Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-muted mb-2">
                   商品名称
                 </label>
                 <input
@@ -512,26 +513,26 @@ export default function MaterialLibrary({
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder="输入商品名称（可选）"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-background border border-card-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-foreground"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-muted">
                   商品名称将用于生图时的提示词，帮助 AI 更好理解商品
                 </p>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-card-border">
               <button
                 onClick={closeEditModal}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-muted hover:text-foreground hover:bg-muted/20 rounded-lg transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={handleSaveEdit}
                 disabled={saving}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? '保存中...' : '保存'}
               </button>
@@ -543,13 +544,13 @@ export default function MaterialLibrary({
       {/* Upload Modal */}
       {uploadModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md m-4">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-md m-4 border border-card-border">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">上传素材</h3>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-card-border">
+              <h3 className="text-lg font-semibold text-foreground">上传素材</h3>
               <button
                 onClick={closeUploadModal}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-2 hover:bg-muted/20 rounded-full transition-colors text-muted hover:text-foreground"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -561,7 +562,7 @@ export default function MaterialLibrary({
             <div className="p-6 space-y-4">
               {/* Preview */}
               {uploadPreview && (
-                <div className="relative aspect-square w-full max-w-[200px] mx-auto rounded-lg overflow-hidden bg-gray-100">
+                <div className="relative aspect-square w-full max-w-[200px] mx-auto rounded-lg overflow-hidden bg-background">
                   <img
                     src={uploadPreview}
                     alt="预览"
@@ -572,7 +573,7 @@ export default function MaterialLibrary({
 
               {/* Name Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-muted mb-2">
                   商品名称
                 </label>
                 <input
@@ -580,26 +581,26 @@ export default function MaterialLibrary({
                   value={uploadName}
                   onChange={(e) => setUploadName(e.target.value)}
                   placeholder="输入商品名称（可选）"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-background border border-card-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-foreground"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-muted">
                   商品名称将用于生图时的提示词，帮助 AI 更好理解商品
                 </p>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-card-border">
               <button
                 onClick={closeUploadModal}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="px-4 py-2 text-muted hover:text-foreground hover:bg-muted/20 rounded-lg transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={handleConfirmUpload}
                 disabled={uploading}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {uploading ? '上传中...' : '确认上传'}
               </button>

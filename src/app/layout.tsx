@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: '上传竞品图和实拍图，AI 帮你生成同款风格的产品图',
 };
 
+import Navbar from '@/components/Navbar';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -13,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <Navbar />
+        <main className="min-h-[calc(100vh-64px)]">
+          {children}
+        </main>
+      </body>
     </html>
   );
 }

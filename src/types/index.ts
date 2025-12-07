@@ -244,10 +244,25 @@ export interface ProductInfo {
   sellingPoints?: string;
   targetAudience?: string;
   brandTone?: string[];
+  usageScenario?: string;    // 使用场景描述
 }
 
 // 生成模式
 export type GenerationMode = 'competitor' | 'template';
+
+// 图像场景类型（AI 智能判断）
+export type ImageSceneType =
+  | 'product_display'    // 纯产品展示（默认）
+  | 'human_usage'        // 人物使用场景（工具、厨具等）
+  | 'pet_interaction'    // 宠物互动场景（宠物用品）
+  | 'environment';       // 环境展示场景（家居装饰）
+
+// 提示词合成结果（包含场景信息）
+export interface PromptSynthesisResult {
+  prompt: string;                    // 生成提示词
+  sceneType: ImageSceneType;         // 场景类型
+  sceneDescription?: string;         // 具体的场景描述
+}
 
 export interface CreateTaskRequest {
   // 必须

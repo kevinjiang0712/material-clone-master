@@ -337,14 +337,16 @@ export default function MaterialsPage() {
                 key={material.id}
                 className="group relative aspect-square rounded-lg overflow-hidden bg-[#2d2d2d] border border-[#404040] hover:border-[#e07a5f] transition-all"
               >
-                <SafeImage
-                  src={material.path}
-                  alt={material.name || '素材'}
-                  fill
-                  sizes="(max-width: 768px) 33vw, 150px"
-                  className="object-cover cursor-pointer"
-                  onClick={() => handleSelectFromLibrary(material)}
-                />
+                <div className="relative w-full h-full">
+                  <SafeImage
+                    src={material.path}
+                    alt={material.name || '素材'}
+                    fill
+                    sizes="(max-width: 768px) 33vw, 150px"
+                    className="object-cover cursor-pointer"
+                    onClick={() => handleSelectFromLibrary(material)}
+                  />
+                </div>
                 {/* Checkbox */}
                 <div
                   className={`absolute top-2 left-2 w-5 h-5 rounded border cursor-pointer flex items-center justify-center transition-colors ${selectedIds.has(material.id) ? 'bg-[#e07a5f] border-[#e07a5f]' : 'bg-[#2d2d2d]/80 border-[#a3a3a3]'

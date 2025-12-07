@@ -43,16 +43,17 @@ export default function Step2StyleSource({
     : !!selectedTemplateId;
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6">
-      <h2 className="text-xl font-semibold text-gray-800 mb-2">
+    <div className="w-full">
+      <h2 className="text-xl font-semibold text-foreground mb-2 flex items-center gap-2">
+        <span className="w-1 h-6 bg-secondary rounded-full"></span>
         选择风格来源
       </h2>
-      <p className="text-sm text-gray-500 mb-6">
+      <p className="text-sm text-muted mb-6 pl-3">
         选择如何定义生成图片的风格
       </p>
 
       {/* 模式选择 */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-4 mb-8">
         <ModeCard
           icon={
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,14 +80,16 @@ export default function Step2StyleSource({
 
       {/* 根据模式显示不同内容 */}
       {generationMode === 'competitor' ? (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* 竞品图上传 */}
           {competitorImagePath ? (
-            <div className="relative">
-              <ImagePreview imagePath={competitorImagePath} alt="竞品图" />
+            <div className="relative group">
+              <div className="rounded-xl overflow-hidden border border-card-border">
+                <ImagePreview imagePath={competitorImagePath} alt="竞品图" />
+              </div>
               <button
                 onClick={() => onCompetitorImageUpload('')}
-                className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-600 hover:text-red-500 p-2 rounded-lg shadow-sm transition-colors"
+                className="absolute top-2 right-2 bg-card/90 hover:bg-danger/90 text-muted hover:text-white p-2 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-300 border border-card-border hover:border-danger"
                 title="重新上传"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,11 +102,11 @@ export default function Step2StyleSource({
           )}
 
           {/* 竞品信息（选填） */}
-          <div className="border-t pt-4">
-            <p className="text-sm text-gray-500 mb-3">竞品信息（选填）</p>
-            <div className="grid grid-cols-2 gap-4">
+          <div className="border-t border-card-border pt-6">
+            <p className="text-sm text-muted mb-4">竞品信息（选填）</p>
+            <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-muted mb-2">
                   竞品名称
                 </label>
                 <input
@@ -111,11 +114,11 @@ export default function Step2StyleSource({
                   value={competitorName}
                   onChange={(e) => onCompetitorNameChange(e.target.value)}
                   placeholder="如：某品牌猫粮"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                  className="w-full px-4 py-2.5 bg-background/50 border border-card-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm text-foreground placeholder-muted transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-muted mb-2">
                   竞品类目
                 </label>
                 <input
@@ -123,7 +126,7 @@ export default function Step2StyleSource({
                   value={competitorCategory}
                   onChange={(e) => onCompetitorCategoryChange(e.target.value)}
                   placeholder="如：猫主粮"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                  className="w-full px-4 py-2.5 bg-background/50 border border-card-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm text-foreground placeholder-muted transition-all"
                 />
               </div>
             </div>
@@ -137,10 +140,10 @@ export default function Step2StyleSource({
       )}
 
       {/* 导航按钮 */}
-      <div className="mt-6 flex justify-between">
+      <div className="mt-8 flex justify-between">
         <button
           onClick={onPrev}
-          className="px-6 py-3 rounded-xl font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-all flex items-center gap-2"
+          className="px-6 py-3 rounded-xl font-medium text-muted hover:text-foreground hover:bg-card transition-all flex items-center gap-2 border border-transparent hover:border-card-border"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -151,11 +154,11 @@ export default function Step2StyleSource({
           onClick={onNext}
           disabled={!canProceed}
           className={`
-            px-6 py-3 rounded-xl font-medium transition-all
+            px-8 py-3 rounded-xl font-medium transition-all duration-300
             flex items-center gap-2
             ${canProceed
-              ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-200'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              ? 'bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5'
+              : 'bg-card text-muted cursor-not-allowed border border-card-border'
             }
           `}
         >
@@ -182,35 +185,39 @@ function ModeCard({ icon, title, description, isSelected, onClick }: ModeCardPro
     <div
       onClick={onClick}
       className={`
-        p-4 rounded-xl border-2 cursor-pointer transition-all duration-200
+        p-5 rounded-xl border transition-all duration-300 cursor-pointer relative overflow-hidden group
         ${isSelected
-          ? 'border-purple-500 bg-purple-50'
-          : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+          ? 'border-primary bg-primary/10 shadow-[0_0_20px_rgba(52,89,149,0.15)]'
+          : 'border-card-border bg-card/30 hover:border-primary/50 hover:bg-card/50'
         }
       `}
     >
-      <div className={`mb-3 ${isSelected ? 'text-purple-600' : 'text-gray-400'}`}>
+      {isSelected && (
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+      )}
+
+      <div className={`mb-4 transition-colors ${isSelected ? 'text-primary' : 'text-muted group-hover:text-primary'}`}>
         {icon}
       </div>
-      <h3 className={`font-semibold mb-1 ${isSelected ? 'text-purple-700' : 'text-gray-800'}`}>
+      <h3 className={`font-semibold mb-2 text-lg transition-colors ${isSelected ? 'text-primary-foreground' : 'text-foreground group-hover:text-foreground'}`}>
         {title}
       </h3>
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-muted leading-relaxed">
         {description}
       </p>
       {/* 选中指示器 */}
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-4 flex items-center gap-2">
         <div className={`
-          w-4 h-4 rounded-full border-2 flex items-center justify-center
-          ${isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300'}
+          w-5 h-5 rounded-full border flex items-center justify-center transition-all
+          ${isSelected ? 'border-primary bg-primary' : 'border-card-border group-hover:border-muted'}
         `}>
           {isSelected && (
-            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
           )}
         </div>
-        <span className={`text-sm ${isSelected ? 'text-purple-600 font-medium' : 'text-gray-400'}`}>
+        <span className={`text-sm transition-colors ${isSelected ? 'text-primary font-medium' : 'text-muted group-hover:text-muted'}`}>
           {isSelected ? '已选择' : '点击选择'}
         </span>
       </div>

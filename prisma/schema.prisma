@@ -36,6 +36,7 @@ model Task {
   generationMode      String?
   styleTemplateId     String?
   jimenResolution     String?
+  usageScenario       String?
   // 批量任务关联
   batchTaskId         String?
   batchTask           BatchTask?    @relation(fields: [batchTaskId], references: [id], onDelete: Cascade)
@@ -64,6 +65,7 @@ model BatchTask {
   productInfo         String?                        // JSON: ProductInfo (不含 productName)
   selectedImageModels String                         // JSON: string[]
   jimenResolution     String    @default("2k")
+  usageScenario       String?                        // 使用场景描述
 
   // 共享分析（竞品分析只做一次）
   competitorAnalysis  String?                        // JSON

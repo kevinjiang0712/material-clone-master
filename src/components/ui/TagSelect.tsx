@@ -38,13 +38,13 @@ export default function TagSelect({
               key={tag}
               type="button"
               onClick={() => toggleTag(tag)}
-              className={cn(
-                'px-3 py-1 text-sm rounded-full border transition-all duration-200',
-                isSelected
-                  ? 'bg-blue-500 text-white border-blue-500'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300 hover:text-blue-500'
-              )}
-            >
+              className={`
+              px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border
+              ${isSelected
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-background text-muted border-card-border hover:border-primary hover:text-foreground'
+                }
+            `}>
               {tag}
             </button>
           );

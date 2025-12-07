@@ -9,7 +9,7 @@ import {
   saveImageFromUrl,
   saveImageFromBase64,
 } from './imageProcessor';
-import { TaskStatus, CompetitorAnalysis, ContentAnalysis, UsedModels, CompetitorInfo, ProductInfo, ResultImage } from '@/types';
+import { TaskStatus, CompetitorAnalysis, ContentAnalysis, UsedModels, CompetitorInfo, ProductInfo, ResultImage, ImageSceneType, PromptSynthesisResult } from '@/types';
 import { DEFAULT_IMAGE_MODELS, AVAILABLE_IMAGE_MODELS } from '@/lib/constants';
 import { getTemplateById } from '@/lib/petStyleTemplates';
 
@@ -154,6 +154,9 @@ export async function processTask(
     let generatedPrompt: string | null = null;
     let competitorBase64: string | null = null;
     let productBase64: string | null = null;
+    // 场景类型信息（用于图像生成器选择不同的系统提示词）
+    let sceneType: ImageSceneType = 'product_display';
+    let sceneDescription: string | undefined;
 
     // 如果从步骤 2 及以后开始，需要加载步骤 1 的结果（仅竞品模式需要）
     // 批量任务时可以使用预加载的竞品分析结果
@@ -319,7 +322,7 @@ export async function processTask(
       await updateTaskStatus(taskId, 'generating_prompt', 3);
 
       if (isTemplateMode) {
-        // ========== 模板模式：使用预设style_prompt + 实拍图分析 ==========
+        // ========== 模板模式：使用预设style_prompt + 实拍图分析 + 使用场景 ==========
         const template = getTemplateById(task.styleTemplateId || '');
         const stylePrompt = template?.presetAnalysis?.style?.style_prompt || '';
 
@@ -327,19 +330,74 @@ export async function processTask(
         console.log(`[Task ${taskId}] - stylePrompt: ${stylePrompt}`);
         console.log(`[Task ${taskId}] - contentAnalysis:`, JSON.stringify(contentAnalysis, null, 2));
 
+        // 获取或推断使用场景
+        let usageSceneDesc = task.usageScenario;
+
+        // 构建商品信息（用于 AI 推断场景）
+        const productInfoForScene: ProductInfo | null = task.productName
+          ? {
+              productName: task.productName,
+              productCategory: task.productCategory || undefined,
+              sellingPoints: task.sellingPoints || undefined,
+              targetAudience: task.targetAudience || undefined,
+              brandTone: task.brandTone ? JSON.parse(task.brandTone) : undefined,
+              usageScenario: task.usageScenario || undefined,
+            }
+          : null;
+
+        // 如果用户未填写使用场景，调用 AI 推断
+        if (!usageSceneDesc && productInfoForScene) {
+          console.log(`[Task ${taskId}] No usage scenario provided, calling AI to infer...`);
+          try {
+            const sceneResult = await openrouterService.generateUsageSceneDescription(
+              productInfoForScene,
+              contentAnalysis
+            );
+            // 提取场景类型和描述
+            const synthesisResult = sceneResult.data;
+            sceneType = synthesisResult.sceneType;
+            sceneDescription = synthesisResult.sceneDescription;
+            usageSceneDesc = synthesisResult.sceneDescription || '专业电商产品展示';
+            console.log(`[Task ${taskId}] AI inferred scene type: ${sceneType}`);
+            console.log(`[Task ${taskId}] AI inferred usage scene: ${usageSceneDesc}`);
+
+            // 记录 AI 推断场景的成本
+            if (sceneResult.generationId) {
+              recordApiCost(taskId, 3, sceneResult.generationId).catch(err =>
+                console.error(`[Task ${taskId}] Failed to record usage scene inference cost:`, err)
+              );
+            }
+          } catch (error) {
+            console.warn(`[Task ${taskId}] Failed to infer usage scene:`, error);
+            // 推断失败时使用默认场景
+            usageSceneDesc = '专业电商产品展示，简洁背景突出产品';
+            sceneType = 'product_display';
+          }
+        }
+
+        console.log(`[Task ${taskId}] Final usage scene: ${usageSceneDesc || '未设置'}`);
+
         // 直接组合预设风格提示词和实拍图分析结果（中文输出）
-        generatedPrompt = `${stylePrompt}
+        // 强调产品保真，详细描述产品特征以便模型精确还原
+        // 添加使用场景设计
+        generatedPrompt = `【风格要求】
+${stylePrompt}
 
-实拍商品图分析结果：
-- 产品形状：${contentAnalysis?.product_shape?.category || '未知'}，${contentAnalysis?.product_shape?.proportions || ''}
-- 外观特征：${contentAnalysis?.product_shape?.outline_features || ''}
+【产品精确描述 - 必须100%还原】
+- 产品类型：${contentAnalysis?.product_shape?.category || '未知'}
+- 整体比例：${contentAnalysis?.product_shape?.proportions || ''}（必须保持原比例，不得拉伸或压缩）
+- 外观轮廓：${contentAnalysis?.product_shape?.outline_features || ''}（轮廓必须精确一致）
 - 拍摄角度：${contentAnalysis?.product_orientation?.view_angle || ''}，${contentAnalysis?.product_orientation?.facing || ''}
-- 产品材质：${contentAnalysis?.product_surface?.material || ''}，${contentAnalysis?.product_surface?.glossiness || ''}
-- 主色调：${contentAnalysis?.color_profile?.primary_color || ''}
-- 辅色调：${contentAnalysis?.color_profile?.secondary_color || ''}
-- 表面纹理：${contentAnalysis?.product_texture?.smoothness || ''}
+- 材质特性：${contentAnalysis?.product_surface?.material || ''}，${contentAnalysis?.product_surface?.glossiness || ''}（透明部分必须保持透明）
+- 主色调：${contentAnalysis?.color_profile?.primary_color || ''}（颜色必须精确）
+- 辅色调/图案：${contentAnalysis?.color_profile?.secondary_color || ''}（图案花纹必须完整保留）
+- 表面质感：${contentAnalysis?.product_texture?.smoothness || ''}
 
-生成要求：保持产品的形状、颜色、材质与上述分析完全一致，生成专业电商产品图。`;
+【使用场景设计】
+${usageSceneDesc || '专业电商产品展示'}
+
+【绝对约束】
+产品的形状、比例、颜色、材质、透明度、图案必须与原图100%一致，在上述使用场景中展示产品。`;
 
         console.log(`[Task ${taskId}] Generated prompt (template mode):\n${generatedPrompt}`);
       } else {
@@ -364,6 +422,7 @@ export async function processTask(
               sellingPoints: task.sellingPoints || undefined,
               targetAudience: task.targetAudience || undefined,
               brandTone: task.brandTone ? JSON.parse(task.brandTone) : undefined,
+              usageScenario: task.usageScenario || undefined,
             }
           : null;
 
@@ -383,7 +442,13 @@ export async function processTask(
           productInfo,
           copywriting
         );
-        generatedPrompt = promptResult.data;
+        // 提取场景类型和描述
+        const synthesisResult = promptResult.data;
+        generatedPrompt = synthesisResult.prompt;
+        sceneType = synthesisResult.sceneType;
+        sceneDescription = synthesisResult.sceneDescription;
+        console.log(`[Task ${taskId}] AI determined scene type: ${sceneType}`);
+        console.log(`[Task ${taskId}] Scene description: ${sceneDescription?.substring(0, 50)}...`);
 
         // 异步记录成本（不阻塞主流程）
         if (promptResult.generationId) {
@@ -447,6 +512,7 @@ export async function processTask(
 
       console.log(`[Task ${taskId}] Selected models:`, selectedModels);
       console.log(`[Task ${taskId}] Dual-image mode: ${styleImageBase64 ? 'YES' : 'NO'}`);
+      console.log(`[Task ${taskId}] Scene type for image generation: ${sceneType}`);
 
       // 当前时间戳（用于分组显示）
       const createdAt = new Date().toISOString();
@@ -470,7 +536,9 @@ export async function processTask(
             generatedPrompt!,
             task.productImagePath!,
             task.jimenResolution || undefined,
-            styleImageBase64  // 传入风格参考图
+            styleImageBase64,  // 传入风格参考图
+            sceneType,         // 传入场景类型
+            sceneDescription   // 传入场景描述
           );
 
           const modelDuration = Date.now() - modelStart;

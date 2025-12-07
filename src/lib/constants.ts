@@ -26,6 +26,13 @@ export const POLLING_INTERVAL = 2000; // 2秒
 export const AVAILABLE_IMAGE_MODELS: ImageModelConfig[] = [
   // 即梦 (Doubao)
   {
+    id: 'jimen:doubao-seedream-4-5-251128',
+    provider: 'jimen',
+    model: 'doubao-seedream-4-5-251128',
+    displayName: '即梦 Seedream 4.5',
+    description: '火山引擎即梦图像生成模型 v4.5（增强版）',
+  },
+  {
     id: 'jimen:doubao-seedream-4-0-250828',
     provider: 'jimen',
     model: 'doubao-seedream-4-0-250828',
@@ -71,7 +78,7 @@ export const AVAILABLE_IMAGE_MODELS: ImageModelConfig[] = [
 ];
 
 // 默认选中的模型
-export const DEFAULT_IMAGE_MODELS = ['jimen:doubao-seedream-4-0-250828'];
+export const DEFAULT_IMAGE_MODELS = ['jimen:doubao-seedream-4-5-251128'];
 
 // 最大可选模型数量
 export const MAX_SELECTED_MODELS = 3;
@@ -79,8 +86,14 @@ export const MAX_SELECTED_MODELS = 3;
 // 单个任务最大图片数量
 export const MAX_IMAGES_PER_TASK = 10;
 
-// 即梦 API 固定价格（元/张）
-export const JIMEN_COST_PER_IMAGE = 0.2;
+// 即梦各模型价格（元/张）
+export const JIMEN_MODEL_COSTS: Record<string, number> = {
+  'doubao-seedream-4-5-251128': 0.25,  // 4.5版本
+  'doubao-seedream-4-0-250828': 0.22,  // 4.0版本
+};
+
+// 默认价格（未配置的模型使用）
+export const JIMEN_DEFAULT_COST_PER_IMAGE = 0.22;
 
 // 即梦分辨率选项
 export interface JimenResolutionOption {
@@ -96,7 +109,7 @@ export const JIMEN_RESOLUTION_OPTIONS: JimenResolutionOption[] = [
   { id: '4k', name: '4K', size: 4096, description: '4096×4096 超高清' },
 ];
 
-export const DEFAULT_JIMEN_RESOLUTION = '2k';
+export const DEFAULT_JIMEN_RESOLUTION = '4k';
 
 // 美元兑人民币汇率（用于参考汇总显示）
 export const USD_TO_CNY_RATE = 7.2;
@@ -112,6 +125,7 @@ export const MODEL_INPUT_RESOLUTION: Record<string, { width: number; height: num
   'openrouter:black-forest-labs/flux.2-pro': { width: 2048, height: 2048, align: 16 },
 
   // 即梦 - 支持 4K 输出，高分辨率输入有益
+  'jimen:doubao-seedream-4-5-251128': { width: 2048, height: 2048 },
   'jimen:doubao-seedream-4-0-250828': { width: 2048, height: 2048 },
 
   // Gemini 系列 - 配合 HIGH 分辨率模式

@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
         sellingPoints: productInfo?.sellingPoints || null,
         targetAudience: productInfo?.targetAudience || null,
         brandTone: productInfo?.brandTone?.length ? JSON.stringify(productInfo.brandTone) : null,
+        usageScenario: productInfo?.usageScenario || null,
       },
     });
 

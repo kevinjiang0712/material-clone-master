@@ -196,35 +196,35 @@ export default function HomePage() {
   const firstImagePath = selectedMaterials.length > 0 ? selectedMaterials[0].path : '';
 
   return (
-    <div className="min-h-full bg-[#1a1a1a] text-[#f5f5f5] pb-20">
+    <div className="min-h-full bg-gray-50 pb-20">
       <div className="max-w-5xl mx-auto px-6 py-12">
 
         {/* Header Section */}
         <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight text-white">
+          <h1 className="text-4xl md:text-5xl font-semibold mb-4 tracking-tight text-gray-900">
             AI Product Photography
           </h1>
-          <p className="text-lg text-[#a3a3a3] font-light max-w-2xl mx-auto">
+          <p className="text-lg text-gray-500 font-normal max-w-2xl mx-auto">
             Create professional product visuals with artistic precision.
           </p>
         </div>
 
         {showEntryCards ? (
-          <div className="space-y-20">
+          <div className="space-y-16">
             {/* Entry Cards */}
-            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
               {/* Material Library Card */}
               <div
                 onClick={() => handleEntrySelect('library')}
-                className="group bg-[#2d2d2d] border border-[#404040] rounded-xl p-10 cursor-pointer hover:border-[#e07a5f] transition-all duration-300 hover:-translate-y-1"
+                className="group bg-white rounded-2xl p-8 cursor-pointer border border-gray-200 hover:border-blue-500 hover:shadow-lg transition-all duration-200"
               >
-                <div className="w-16 h-16 bg-[#333] rounded-full flex items-center justify-center mb-6 group-hover:bg-[#e07a5f] transition-colors duration-300">
-                  <svg className="w-8 h-8 text-[#a3a3a3] group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-5 group-hover:bg-blue-500 transition-colors duration-200">
+                  <svg className="w-6 h-6 text-blue-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-semibold text-white mb-3">素材库</h2>
-                <p className="text-[#a3a3a3] leading-relaxed">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">素材库</h2>
+                <p className="text-gray-500 text-sm leading-relaxed">
                   管理和使用已上传的产品素材，支持批量选择生图。
                 </p>
               </div>
@@ -232,29 +232,29 @@ export default function HomePage() {
               {/* Direct Upload Card */}
               <div
                 onClick={() => handleEntrySelect('upload')}
-                className="group bg-[#2d2d2d] border border-[#404040] rounded-xl p-10 cursor-pointer hover:border-[#81b29a] transition-all duration-300 hover:-translate-y-1"
+                className="group bg-white rounded-2xl p-8 cursor-pointer border border-gray-200 hover:border-emerald-500 hover:shadow-lg transition-all duration-200"
               >
-                <div className="w-16 h-16 bg-[#333] rounded-full flex items-center justify-center mb-6 group-hover:bg-[#81b29a] transition-colors duration-300">
-                  <svg className="w-8 h-8 text-[#a3a3a3] group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mb-5 group-hover:bg-emerald-500 transition-colors duration-200">
+                  <svg className="w-6 h-6 text-emerald-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-semibold text-white mb-3">直接上传</h2>
-                <p className="text-[#a3a3a3] leading-relaxed">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">直接上传</h2>
+                <p className="text-gray-500 text-sm leading-relaxed">
                   上传新的产品实拍图，立即生成高质量营销图。
                 </p>
               </div>
             </div>
 
             {/* Recent Generations */}
-            <div className="border-t border-[#333] pt-12">
+            <div className="border-t border-gray-200 pt-12">
               <RecentGenerations />
             </div>
           </div>
         ) : (
           <div className="max-w-4xl mx-auto">
             {/* Wizard Container */}
-            <div className="bg-[#2d2d2d] border border-[#404040] rounded-2xl p-8 md:p-12 shadow-xl">
+            <div className="bg-white border border-gray-200 rounded-2xl p-8 md:p-12 shadow-sm">
               <div className="mb-12">
                 <StepIndicator steps={STEPS} currentStep={currentStep} />
               </div>
@@ -315,7 +315,7 @@ export default function HomePage() {
             <div className="mt-6 text-center">
               <button
                 onClick={() => setShowEntryCards(true)}
-                className="text-[#a3a3a3] hover:text-white text-sm transition-colors"
+                className="text-gray-400 hover:text-gray-600 text-sm transition-colors"
               >
                 返回首页
               </button>

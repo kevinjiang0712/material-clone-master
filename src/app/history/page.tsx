@@ -97,10 +97,10 @@ export default function HistoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
+      <div className="min-h-screen bg-[#1a1a1a]">
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">加载中...</div>
+            <div className="text-[#a3a3a3]">加载中...</div>
           </div>
         </div>
       </div>
@@ -108,14 +108,14 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
+    <div className="min-h-screen bg-[#1a1a1a] text-[#f5f5f5]">
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* 头部 */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+              className="flex items-center gap-2 text-[#a3a3a3] hover:text-white transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -123,21 +123,21 @@ export default function HistoryPage() {
               返回首页
             </Link>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">生成历史</h1>
-          <div className="text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-white">生成历史</h1>
+          <div className="text-sm text-[#737373]">
             共 {total} 条记录
           </div>
         </div>
 
         {/* 空状态 */}
         {tasks.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+          <div className="bg-[#2d2d2d] border border-[#404040] rounded-2xl shadow-lg p-12 text-center">
             <div className="text-6xl mb-4">📭</div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">暂无生成记录</h3>
-            <p className="text-gray-500 mb-6">开始创建您的第一个图像生成任务吧</p>
+            <h3 className="text-xl font-semibold text-white mb-2">暂无生成记录</h3>
+            <p className="text-[#a3a3a3] mb-6">开始创建您的第一个图像生成任务吧</p>
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#e07a5f] text-white rounded-xl hover:bg-[#d0694e] transition-colors"
             >
               开始创建
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,9 +151,9 @@ export default function HistoryPage() {
             {groupedTasks.today.length > 0 && (
               <section>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <h2 className="text-lg font-semibold text-gray-700">今天</h2>
-                  <span className="text-sm text-gray-400">({groupedTasks.today.length})</span>
+                  <div className="w-3 h-3 rounded-full bg-[#e07a5f]"></div>
+                  <h2 className="text-lg font-semibold text-[#f5f5f5]">今天</h2>
+                  <span className="text-sm text-[#737373]">({groupedTasks.today.length})</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {groupedTasks.today.map((task) => (
@@ -167,9 +167,9 @@ export default function HistoryPage() {
             {groupedTasks.yesterday.length > 0 && (
               <section>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  <h2 className="text-lg font-semibold text-gray-700">昨天</h2>
-                  <span className="text-sm text-gray-400">({groupedTasks.yesterday.length})</span>
+                  <div className="w-3 h-3 rounded-full bg-[#81b29a]"></div>
+                  <h2 className="text-lg font-semibold text-[#f5f5f5]">昨天</h2>
+                  <span className="text-sm text-[#737373]">({groupedTasks.yesterday.length})</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {groupedTasks.yesterday.map((task) => (
@@ -183,9 +183,9 @@ export default function HistoryPage() {
             {groupedTasks.earlier.length > 0 && (
               <section>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-                  <h2 className="text-lg font-semibold text-gray-700">更早</h2>
-                  <span className="text-sm text-gray-400">({groupedTasks.earlier.length})</span>
+                  <div className="w-3 h-3 rounded-full bg-[#f2cc8f]"></div>
+                  <h2 className="text-lg font-semibold text-[#f5f5f5]">更早</h2>
+                  <span className="text-sm text-[#737373]">({groupedTasks.earlier.length})</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {groupedTasks.earlier.map((task) => (
@@ -201,7 +201,7 @@ export default function HistoryPage() {
                 <button
                   onClick={handleLoadMore}
                   disabled={loadingMore}
-                  className="px-6 py-3 bg-white border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-[#2d2d2d] border border-[#404040] rounded-xl text-[#a3a3a3] hover:text-white hover:border-[#e07a5f] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loadingMore ? (
                     <span className="flex items-center gap-2">

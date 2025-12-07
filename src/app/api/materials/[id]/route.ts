@@ -78,3 +78,46 @@ export async function GET(
     );
   }
 }
+
+// PATCH /api/materials/[id] - 更新素材信息
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { name } = body;
+
+    // 查找素材
+    const material = await prisma.material.findUnique({
+      where: { id },
+    });
+
+    if (!material) {
+      return NextResponse.json(
+        { error: '素材不存在' },
+        { status: 404 }
+      );
+    }
+
+    // 更新素材
+    const updatedMaterial = await prisma.material.update({
+      where: { id },
+      data: {
+        name: name?.trim() || null,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      material: updatedMaterial,
+    });
+  } catch (error) {
+    console.error('[Materials API] PATCH error:', error);
+    return NextResponse.json(
+      { error: '更新素材失败' },
+      { status: 500 }
+    );
+  }
+}

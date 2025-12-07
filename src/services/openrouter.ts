@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { LayoutAnalysis, StyleAnalysis, ContentAnalysis, CompetitorAnalysis, CompetitorInfo, ProductInfo } from '@/types';
+import { LayoutAnalysis, StyleAnalysis, ContentAnalysis, CompetitorAnalysis, CompetitorInfo, ProductInfo, ImageSceneType, PromptSynthesisResult } from '@/types';
 import { API_TIMEOUT, API_RETRIES, RETRY_DELAY } from '@/lib/constants';
 
 // 带 generationId 的响应类型
@@ -648,6 +648,7 @@ TASK: Create a professional e-commerce product photo that:
 /**
  * 使用 AI 动态合成提示词
  * 根据竞品分析、实拍图分析和商品信息，智能生成图像生成提示词
+ * 同时输出场景类型和场景描述
  */
 export async function synthesizePromptWithAI(
   layout: LayoutAnalysis,
@@ -656,7 +657,7 @@ export async function synthesizePromptWithAI(
   competitorInfo?: CompetitorInfo | null,
   productInfo?: ProductInfo | null,
   copywriting?: CopywritingInfo | null
-): Promise<AnalysisResponse<string>> {
+): Promise<AnalysisResponse<PromptSynthesisResult>> {
   console.log('[OpenRouter] synthesizePromptWithAI called');
   console.log('[OpenRouter] Using model:', VISION_MODEL);
 
@@ -667,7 +668,8 @@ export async function synthesizePromptWithAI(
 - 商品类目: ${productInfo.productCategory || '未提供'}
 - 核心卖点: ${productInfo.sellingPoints || '未提供'}
 - 目标人群: ${productInfo.targetAudience || '未提供'}
-- 品牌调性: ${productInfo.brandTone?.join('、') || '未提供'}` : '';
+- 品牌调性: ${productInfo.brandTone?.join('、') || '未提供'}
+- 使用场景: ${productInfo.usageScenario || '未提供（请根据商品信息智能推断）'}` : '';
 
   const competitorContext = competitorInfo ? `
 ### 竞品信息
@@ -693,47 +695,63 @@ ${competitorContext}
 ${productContext}
 
 ## 你的任务
-根据以上所有信息，生成一个专业的电商产品图生成提示词。
+1. 根据商品信息智能判断最合适的图像场景类型
+2. 生成详细的场景描述
+3. 生成完整的图像生成提示词
+
+## 场景类型判断（重要）
+根据产品类型和功能，判断最适合的图像场景类型：
+
+1. **human_usage**（人物使用场景）：
+   - 适用：工具类（铲子、钳子、螺丝刀）、厨具、清洁用品、健身器材、美妆护肤
+   - 展示：手部或半身人物使用产品的动作
+
+2. **pet_interaction**（宠物互动场景）：
+   - 适用：宠物用品（猫粮、狗窝、玩具、餐具、猫抓板、宠物服饰）
+   - 展示：宠物与产品的自然互动
+
+3. **environment**（环境展示场景）：
+   - 适用：家居装饰、摆件、收纳用品、家具
+   - 展示：产品在合适环境中的摆放
+
+4. **product_display**（纯产品展示）：
+   - 适用：无明显使用场景的产品（数据线、转接头等）
+   - 展示：产品本身，简洁背景
 
 ## 关键规则
 
 ### 1. 产品物理属性（必须保持不变）
 - 产品的形状、颜色、材质必须与实拍图分析中描述的完全一致
 - 不能改变产品的任何物理特征
-- 明确描述产品的外观特征，确保生成图像中的产品与原图一致
 
-### 2. 智能场景设计
-根据商品类目、卖点和目标人群，智能决定场景元素：
+### 2. 场景设计
+根据判断的场景类型，设计合适的使用场景：
 
-**关于是否添加宠物**：
-分析以下因素来决定是否需要在场景中添加宠物：
-- 商品是否为宠物相关产品（宠物食品、宠物用品、宠物玩具、宠物服饰等）
-- 商品卖点是否与宠物生活相关
-- 目标人群是否为宠物主人
-- 添加宠物是否能增强商品的吸引力和卖点表达
+**如果是 pet_interaction，必须详细描述宠物**：
+- 宠物类型和特征（如：毛茸茸的橘猫、金毛幼犬）
+- 自然生动的姿态和表情
+- 与商品的自然互动方式
+- 毛发质感
 
-**如果决定添加宠物，必须详细描述**：
-- 宠物类型和特征（如：毛茸茸的橘猫、金毛幼犬、英短蓝猫、布偶猫）
-- 自然生动的姿态（如：慵懒地伸懒腰、好奇地歪着头、开心地摇着尾巴、蜷缩在一旁、趴在地上抬头看）
-- 有感染力的表情（如：明亮有神的大眼睛、惬意地眯着眼、微微吐出小舌头、竖起耳朵、露出满足的神情）
-- 与商品的自然互动（如：用爪子轻轻触碰商品、依偎在商品旁边、好奇地嗅闻、围着商品打转、舒服地躺在旁边）
-- 毛发质感（如：柔软蓬松的毛发在光线下泛着光泽、打理得光亮顺滑的皮毛、绒毛在灯光下显得温暖柔和）
+**如果是 human_usage，必须详细描述人物使用**：
+- 人物局部（如：手部特写）
+- 使用动作和姿态
+- 使用环境
+
+**如果是 environment，必须详细描述环境**：
+- 摆放位置和环境场景
+- 光影和氛围
 
 ### 3. 参考竞品风格
 - 背景风格、光影效果、色调氛围应参考竞品图的风格分析结果
-- 构图方式参考竞品的版式分析结果
-- 整体氛围和情绪要与竞品图保持一致
 
-### 4. 其他场景元素
-根据商品特性，可以添加适当的场景元素：
-- 背景道具和装饰
-- 光影效果
-- 氛围营造元素
-
-## 输出要求
-直接输出中文提示词，不要任何额外说明、标题或 JSON 包装。
-提示词应该是一段完整、详细的描述，可以直接用于图像生成模型。
-确保提示词包含：产品描述、场景设计、光影氛围、以及是否包含宠物及其详细描述（如果适用）。`;
+## 输出格式
+请严格按以下 JSON 格式输出，不要添加任何额外说明：
+{
+  "scene_type": "human_usage 或 pet_interaction 或 environment 或 product_display",
+  "scene_description": "具体的场景描述（50-100字），描述画面中除产品外的场景元素",
+  "prompt": "完整的中文图像生成提示词（200-400字），包含产品描述、场景设计、光影氛围等"
+}`;
 
   return withRetry(async () => {
     const response = await openrouter.chat.completions.create({
@@ -748,13 +766,170 @@ ${productContext}
     });
 
     console.log('[OpenRouter] synthesizePromptWithAI response status:', response.choices[0].finish_reason);
-    const generatedPrompt = response.choices[0].message.content || '';
-    console.log('[OpenRouter] synthesizePromptWithAI generated prompt length:', generatedPrompt.length);
+    const responseContent = response.choices[0].message.content || '{}';
+    console.log('[OpenRouter] synthesizePromptWithAI response length:', responseContent.length);
 
     const generationId = response.id || '';
     console.log('[OpenRouter] synthesizePromptWithAI generationId:', generationId);
-    console.log('[OpenRouter] synthesizePromptWithAI completed successfully');
 
-    return { data: generatedPrompt.trim(), generationId };
+    // 解析 JSON 响应
+    let result: PromptSynthesisResult;
+    try {
+      const parsed = parseJsonResponse(responseContent) as {
+        scene_type?: string;
+        scene_description?: string;
+        prompt?: string;
+      };
+
+      // 验证并转换场景类型
+      const validSceneTypes: ImageSceneType[] = ['product_display', 'human_usage', 'pet_interaction', 'environment'];
+      const sceneType = validSceneTypes.includes(parsed.scene_type as ImageSceneType)
+        ? (parsed.scene_type as ImageSceneType)
+        : 'product_display';
+
+      result = {
+        prompt: parsed.prompt || '',
+        sceneType,
+        sceneDescription: parsed.scene_description,
+      };
+
+      console.log('[OpenRouter] synthesizePromptWithAI scene_type:', result.sceneType);
+      console.log('[OpenRouter] synthesizePromptWithAI scene_description:', result.sceneDescription?.substring(0, 50) + '...');
+      console.log('[OpenRouter] synthesizePromptWithAI prompt length:', result.prompt.length);
+    } catch (error) {
+      // 如果 JSON 解析失败，将整个响应作为 prompt，默认场景类型为 product_display
+      console.warn('[OpenRouter] Failed to parse JSON response, using raw content as prompt');
+      result = {
+        prompt: responseContent.trim(),
+        sceneType: 'product_display',
+      };
+    }
+
+    console.log('[OpenRouter] synthesizePromptWithAI completed successfully');
+    return { data: result, generationId };
   }, 'synthesizePromptWithAI');
+}
+
+/**
+ * 生成使用场景描述（用于模板模式）
+ * 根据商品信息和产品分析，智能推断合适的使用场景
+ * 返回场景类型和场景描述
+ */
+export async function generateUsageSceneDescription(
+  productInfo: ProductInfo | null,
+  contentAnalysis: ContentAnalysis | null
+): Promise<AnalysisResponse<PromptSynthesisResult>> {
+  console.log('[OpenRouter] generateUsageSceneDescription called');
+  console.log('[OpenRouter] Using model:', VISION_MODEL);
+
+  // 如果没有商品信息，返回默认值
+  if (!productInfo?.productName) {
+    console.log('[OpenRouter] No product info, returning default');
+    return {
+      data: {
+        prompt: '',
+        sceneType: 'product_display',
+        sceneDescription: '',
+      },
+      generationId: '',
+    };
+  }
+
+  const prompt = `你是电商产品使用场景设计专家。
+
+## 输入信息
+
+### 商品基本信息
+- 商品名称: ${productInfo.productName}
+- 商品类目: ${productInfo.productCategory || '未提供'}
+- 核心卖点: ${productInfo.sellingPoints || '未提供'}
+- 目标人群: ${productInfo.targetAudience || '未提供'}
+- 用户指定场景: ${productInfo.usageScenario || '未提供'}
+
+### 产品物理特征
+${contentAnalysis ? JSON.stringify(contentAnalysis, null, 2) : '未提供'}
+
+## 任务
+1. 根据商品信息判断最合适的场景类型
+2. 生成详细的场景描述
+
+## 场景类型判断规则
+
+1. **human_usage**（人物使用场景）：
+   - 适用：工具类（铲子、钳子）、厨具、清洁用品、健身器材、美妆护肤
+   - 展示：手部或半身人物使用产品的动作
+
+2. **pet_interaction**（宠物互动场景）：
+   - 适用：宠物用品（猫粮、狗窝、玩具、餐具、猫抓板）
+   - 展示：宠物与产品的自然互动
+
+3. **environment**（环境展示场景）：
+   - 适用：家居装饰、摆件、收纳用品
+   - 展示：产品在合适环境中的摆放
+
+4. **product_display**（纯产品展示）：
+   - 适用：无明显使用场景的产品
+   - 展示：产品本身，简洁背景
+
+## 输出格式
+请严格按以下 JSON 格式输出，不要添加任何额外说明：
+{
+  "scene_type": "human_usage 或 pet_interaction 或 environment 或 product_display",
+  "scene_description": "具体的场景描述（100-200字），包含场景主体、动作状态、环境背景、氛围营造"
+}`;
+
+  return withRetry(async () => {
+    const response = await openrouter.chat.completions.create({
+      model: VISION_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      max_tokens: 500,
+    });
+
+    console.log('[OpenRouter] generateUsageSceneDescription response status:', response.choices[0].finish_reason);
+    const responseContent = response.choices[0].message.content || '{}';
+    console.log('[OpenRouter] generateUsageSceneDescription response length:', responseContent.length);
+
+    const generationId = response.id || '';
+    console.log('[OpenRouter] generateUsageSceneDescription generationId:', generationId);
+
+    // 解析 JSON 响应
+    let result: PromptSynthesisResult;
+    try {
+      const parsed = parseJsonResponse(responseContent) as {
+        scene_type?: string;
+        scene_description?: string;
+      };
+
+      // 验证并转换场景类型
+      const validSceneTypes: ImageSceneType[] = ['product_display', 'human_usage', 'pet_interaction', 'environment'];
+      const sceneType = validSceneTypes.includes(parsed.scene_type as ImageSceneType)
+        ? (parsed.scene_type as ImageSceneType)
+        : 'product_display';
+
+      result = {
+        prompt: '', // 模板模式的 prompt 由 taskProcessor 组合
+        sceneType,
+        sceneDescription: parsed.scene_description,
+      };
+
+      console.log('[OpenRouter] generateUsageSceneDescription scene_type:', result.sceneType);
+      console.log('[OpenRouter] generateUsageSceneDescription scene_description:', result.sceneDescription?.substring(0, 50) + '...');
+    } catch (error) {
+      // 如果 JSON 解析失败，默认返回 product_display
+      console.warn('[OpenRouter] Failed to parse JSON response, using default');
+      result = {
+        prompt: '',
+        sceneType: 'product_display',
+        sceneDescription: responseContent.trim(),
+      };
+    }
+
+    console.log('[OpenRouter] generateUsageSceneDescription completed successfully');
+    return { data: result, generationId };
+  }, 'generateUsageSceneDescription');
 }

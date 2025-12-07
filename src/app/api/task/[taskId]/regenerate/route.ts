@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateImageWithModel } from '@/services/imageGenerator';
 import { ResultImage } from '@/types';
-import { MAX_IMAGES_PER_TASK, AVAILABLE_IMAGE_MODELS, JIMEN_COST_PER_IMAGE } from '@/lib/constants';
+import { MAX_IMAGES_PER_TASK, AVAILABLE_IMAGE_MODELS, JIMEN_MODEL_COSTS, JIMEN_DEFAULT_COST_PER_IMAGE } from '@/lib/constants';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -181,8 +181,10 @@ export async function POST(
           savedPath = `/uploads/result/${fileName}`;
         }
 
-        // 记录 API 调用成本
-        const cost = modelConfig.provider === 'jimen' ? JIMEN_COST_PER_IMAGE : 0;
+        // 记录 API 调用成本（根据具体模型获取价格）
+        const cost = modelConfig.provider === 'jimen'
+          ? (JIMEN_MODEL_COSTS[modelConfig.model] || JIMEN_DEFAULT_COST_PER_IMAGE)
+          : 0;
 
         await prisma.apiCall.create({
           data: {

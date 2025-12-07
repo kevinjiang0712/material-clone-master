@@ -32,12 +32,12 @@ export default function StepIndicator({ steps, currentStep, onStepClick }: StepI
               <div
                 className={`
                   w-10 h-10 rounded-full flex items-center justify-center
-                  font-semibold text-sm transition-all duration-200
+                  font-semibold text-sm transition-all duration-300 border-2
                   ${isCompleted
-                    ? 'bg-green-500 text-white'
+                    ? 'bg-primary text-white border-primary'
                     : isCurrent
-                      ? 'bg-purple-600 text-white ring-4 ring-purple-100'
-                      : 'bg-gray-200 text-gray-500'
+                      ? 'bg-transparent text-primary border-primary'
+                      : 'bg-transparent text-muted border-card-border'
                   }
                 `}
               >
@@ -51,8 +51,8 @@ export default function StepIndicator({ steps, currentStep, onStepClick }: StepI
               </div>
               <span
                 className={`
-                  mt-2 text-xs font-medium whitespace-nowrap
-                  ${isCurrent ? 'text-purple-600' : isCompleted ? 'text-green-600' : 'text-gray-400'}
+                  mt-3 text-xs font-medium whitespace-nowrap tracking-wide
+                  ${isCurrent ? 'text-primary' : isCompleted ? 'text-primary' : 'text-muted'}
                 `}
               >
                 {step.label}
@@ -63,8 +63,8 @@ export default function StepIndicator({ steps, currentStep, onStepClick }: StepI
             {index < steps.length - 1 && (
               <div
                 className={`
-                  w-16 h-0.5 mx-2 transition-colors duration-200
-                  ${step.number < currentStep ? 'bg-green-500' : 'bg-gray-200'}
+                  w-16 h-0.5 mx-2 transition-colors duration-300
+                  ${step.number < currentStep ? 'bg-primary' : 'bg-card-border'}
                 `}
               />
             )}

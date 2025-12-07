@@ -50,16 +50,17 @@ export default function RecentGenerations() {
   }
 
   return (
-    <div className="mt-12 bg-white rounded-2xl shadow-lg p-6">
+    <div className="w-full">
       {/* 标题栏 */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-800">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+          <span className="w-1 h-6 bg-secondary rounded-full"></span>
           最近生成
         </h2>
         {total > 4 && (
           <Link
             href="/history"
-            className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
+            className="text-sm text-secondary hover:text-secondary/80 flex items-center gap-1 transition-colors"
           >
             查看全部
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,7 +77,7 @@ export default function RecentGenerations() {
         </div>
       ) : (
         /* 卡片网格 */
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           {tasks.map((task) => (
             <TaskCardSimple key={task.id} task={task} />
           ))}

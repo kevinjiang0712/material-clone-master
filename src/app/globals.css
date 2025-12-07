@@ -2,26 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* 背景与前景 */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 15%;
+
+    /* 卡片 */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 15%;
+
+    /* 弹出层 */
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 15%;
+
+    /* 主色 - 现代深蓝 #2563eb */
+    --primary: 217 91% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    /* 次要色 - 翠绿 #10b981 */
+    --secondary: 160 84% 39%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* 静音色 */
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+
+    /* 强调色 - 琥珀 #f59e0b */
+    --accent: 38 92% 50%;
+    --accent-foreground: 240 10% 15%;
+
+    /* 危险色 - 玫瑰红 #ef4444 */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* 边框与输入框 */
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 217 91% 53%;
+
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
   }
 }

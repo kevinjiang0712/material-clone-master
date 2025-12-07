@@ -79,37 +79,37 @@ export default function TaskCardSimple({ task }: TaskCardSimpleProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-4 border border-gray-100">
+    <div className="bg-card rounded-xl p-4 border border-card-border hover:border-primary transition-all duration-300 group">
       {/* 任务ID */}
       <div
-        className="text-xs text-gray-400 font-mono mb-2 break-all cursor-pointer hover:text-gray-600"
+        className="text-xs text-muted font-mono mb-3 break-all cursor-pointer hover:text-foreground transition-colors flex items-center gap-1"
         title="点击复制"
         onClick={(e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(task.id);
         }}
       >
-        {task.id}
+        <span className="opacity-50">ID:</span> {task.id.slice(0, 8)}...
       </div>
 
       {/* 图片预览：实拍图 + 结果图 并排 */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      <div className="grid grid-cols-2 gap-3 mb-4">
         {/* 实拍图 */}
-        <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+        <div className="relative aspect-square rounded-lg overflow-hidden bg-background border border-card-border">
           <SafeImage
             src={task.productImagePath}
             alt="实拍图"
             fill
             sizes="(max-width: 768px) 50vw, 150px"
-            className="object-cover"
+            className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
           />
-          <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs px-1 py-0.5 text-center">
+          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-1 text-center">
             实拍图
           </div>
         </div>
 
         {/* 结果图 */}
-        <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+        <div className="relative aspect-square rounded-lg overflow-hidden bg-background border border-card-border">
           {task.resultImagePath ? (
             <>
               <SafeImage
@@ -119,16 +119,16 @@ export default function TaskCardSimple({ task }: TaskCardSimpleProps) {
                 sizes="(max-width: 768px) 50vw, 150px"
                 className="object-cover"
               />
-              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs px-1 py-0.5 text-center">
+              <div className="absolute bottom-0 left-0 right-0 bg-primary/90 text-white text-[10px] px-1 py-1 text-center">
                 生成结果
               </div>
             </>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
+            <div className="w-full h-full flex items-center justify-center text-[#666]">
               {task.status === 'failed' ? (
-                <span className="text-2xl">❌</span>
+                <span className="text-2xl opacity-50">❌</span>
               ) : (
-                <span className="text-2xl">⏳</span>
+                <span className="text-2xl animate-pulse">⏳</span>
               )}
             </div>
           )}
@@ -136,19 +136,22 @@ export default function TaskCardSimple({ task }: TaskCardSimpleProps) {
       </div>
 
       {/* 状态和时间 */}
-      <div className="flex items-center justify-between mb-3">
-        <span className={`${statusConfig.bg} ${statusConfig.color} px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1`}>
+      <div className="flex items-center justify-between mb-4">
+        <span className={`px-2 py-1 rounded-md text-[10px] font-medium flex items-center gap-1 border ${task.status === 'completed' ? 'bg-green-900/20 text-green-400 border-green-900/30' :
+          task.status === 'failed' ? 'bg-red-900/20 text-red-400 border-red-900/30' :
+            'bg-blue-900/20 text-blue-400 border-blue-900/30'
+          }`}>
           <span>{statusConfig.icon}</span>
           <span>{statusConfig.label}</span>
         </span>
-        <span className="text-xs text-gray-400">{getTimeAgo(task.createdAt)}</span>
+        <span className="text-[10px] text-[#737373]">{getTimeAgo(task.createdAt)}</span>
       </div>
 
       {/* 操作按钮 */}
       <div className="flex gap-2">
         <button
           onClick={handleViewDetails}
-          className="flex-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+          className="flex-1 px-3 py-2 bg-background hover:bg-card-border text-foreground text-xs rounded-lg transition-all duration-200 border border-card-border"
         >
           查看详情
         </button>
@@ -156,9 +159,9 @@ export default function TaskCardSimple({ task }: TaskCardSimpleProps) {
           <button
             onClick={handleRetry}
             disabled={isRetrying}
-            className="px-3 py-1.5 bg-orange-100 hover:bg-orange-200 text-orange-700 text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs rounded-lg transition-colors border border-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isRetrying ? '重试中...' : '重试'}
+            {isRetrying ? '...' : '重试'}
           </button>
         )}
       </div>
